@@ -35,13 +35,18 @@ Completed Features:
 
   ## How to Run the Project Locally
   step 1 : Clone the Repository
+  
   step 2 : Backend Setup
+  
   cd backend
   npm install
   npm start
   server runs on :  http://localhost:5000
+  
   Step 3 : Frontend Setup
+  
   cd frontend
   npm install
   npm start
- Frontend runs on: http://localhost:3000
+  
+  Frontend runs on: http://localhost:3000
