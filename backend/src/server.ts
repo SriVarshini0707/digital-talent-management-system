@@ -4,7 +4,6 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import cors from "cors";
 
 dotenv.config();
@@ -57,26 +56,14 @@ async function startServer() {
   const PORT = 3000;
 
   // Database Connection
-  let mongoUri = process.env.MONGODB_URI;
-  if (!mongoUri) {
-    console.log("No MONGODB_URI provided. Starting in-memory MongoDB...");
-    const mongoServer = await MongoMemoryServer.create();
-    mongoUri = mongoServer.getUri();
-  }
+  const mongoUri = "mongodb://127.0.0.1:27017/digital_talent_db";
 
-  try {
-    await mongoose.connect(mongoUri);
-    console.log("Connected to MongoDB:", mongoUri.includes('127.0.0.1') ? 'In-Memory Instance' : 'External Instance');
-  } catch (err) {
-    console.error("MongoDB connection error:", err);
-    // Fallback to in-memory if external connection fails
-    if (process.env.MONGODB_URI) {
-      console.log("Falling back to in-memory MongoDB...");
-      const mongoServer = await MongoMemoryServer.create();
-      await mongoose.connect(mongoServer.getUri());
-      console.log("Connected to in-memory MongoDB.");
-    }
-  }
+try {
+  await mongoose.connect(mongoUri);
+  console.log("Connected to MongoDB:", mongoUri);
+} catch (err) {
+  console.error("MongoDB connection error:", err);
+}
 
   app.use(express.json());
   app.use(cookieParser());
