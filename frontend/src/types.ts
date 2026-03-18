@@ -17,6 +17,12 @@ export enum TaskStatus {
   REJECTED = 'rejected'
 }
 
+export enum TaskPriority {
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high'
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -25,6 +31,8 @@ export interface Task {
   assigned_to: string | null;
   assigned_to_name?: string;
   admin_feedback?: string;
+  due_date?: string | null;
+  priority?: TaskPriority;
   created_at: string;
 }
 

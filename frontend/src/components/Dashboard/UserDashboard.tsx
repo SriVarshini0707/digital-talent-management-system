@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Task, TaskStatus } from '../../types';
+import { Task, TaskPriority, TaskStatus } from '../../types';
 import { Clock, Send, CheckCircle, FileText, ArrowRight, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -82,9 +82,19 @@ export default function UserDashboard() {
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-2 text-xs text-stone-400 pt-2 border-t border-stone-50">
-                <Clock className="w-3.5 h-3.5" />
-                Assigned: {new Date(task.created_at).toLocaleDateString()}
+              <div className="pt-2 border-t border-stone-50 space-y-2 text-xs text-stone-400">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-3.5 h-3.5" />
+                  Assigned: {new Date(task.created_at).toLocaleDateString()}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="w-3.5 h-3.5" />
+                  Due: {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}
+                </div>
+                <div className="flex items-center gap-2">
+                  <FileText className="w-3.5 h-3.5" />
+                  Priority: <span className="capitalize text-stone-600">{task.priority || TaskPriority.MEDIUM}</span>
+                </div>
               </div>
             </div>
             

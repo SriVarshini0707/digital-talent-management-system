@@ -27,6 +27,8 @@ const taskSchema = new mongoose.Schema({
   description: { type: String },
   status: { type: String, default: 'pending', enum: ['pending', 'submitted', 'completed', 'rejected'] },
   assigned_to: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  due_date: { type: Date },
+  priority: { type: String, default: 'medium', enum: ['low', 'medium', 'high'] },
   admin_feedback: { type: String },
   created_at: { type: Date, default: Date.now }
 }, {
@@ -155,9 +157,15 @@ try {
   });
 
   app.post("/api/tasks", authenticate, isAdmin, async (req, res) => {
-    const { title, description, assigned_to } = req.body;
+    const { title, description, assigned_to, due_date, priority } = req.body;
     try {
-      const task = new Task({ title, description, assigned_to: assigned_to || null });
+      const task = new Task({
+        title,
+        description,
+        assigned_to: assigned_to || null,
+        due_date: due_date ? new Date(due_date) : null,
+        priority: priority || 'medium'
+      });
       await task.save();
       res.json({ success: true, id: task.id });
     } catch (err) {
@@ -166,14 +174,16 @@ try {
   });
 
   app.put("/api/tasks/:id", authenticate, isAdmin, async (req, res) => {
-    const { title, description, assigned_to, status, admin_feedback } = req.body;
+    const { title, description, assigned_to, status, admin_feedback, due_date, priority } = req.body;
     try {
       await Task.findByIdAndUpdate(req.params.id, {
         title,
         description,
         assigned_to: assigned_to || null,
         status,
-        admin_feedback
+        admin_feedback,
+        due_date: due_date ? new Date(due_date) : null,
+        priority
       });
       res.json({ success: true });
     } catch (err) {

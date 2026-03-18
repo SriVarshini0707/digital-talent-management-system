@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, CheckCircle, Clock, Send, BarChart3, Trash2, Edit2, Users, FileText, Eye, XCircle, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Task, Analytics, User, TaskStatus, Submission } from '../../types';
+import { Task, Analytics, User, TaskStatus, Submission, TaskPriority } from '../../types';
 
 export default function AdminDashboard() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -10,7 +10,20 @@ export default function AdminDashboard() {
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingSubmissions, setViewingSubmissions] = useState<{ task: Task, submissions: Submission[] } | null>(null);
-  const [newTask, setNewTask] = useState({ title: '', description: '', assigned_to: '' });
+  const [newTask, setNewTask] = useState({
+    title: '',
+    description: '',
+    assigned_to: '',
+    due_date: '',
+    priority: TaskPriority.MEDIUM
+  });
+
+  const toDateInputValue = (value?: string | null) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toISOString().slice(0, 10);
+  };
 
   useEffect(() => {
     fetchData();
@@ -37,11 +50,20 @@ export default function AdminDashboard() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify(newTask),
+      body: JSON.stringify({
+        ...newTask,
+        due_date: newTask.due_date || null
+      }),
     });
     if (res.ok) {
       setIsAddingTask(false);
-      setNewTask({ title: '', description: '', assigned_to: '' });
+      setNewTask({
+        title: '',
+        description: '',
+        assigned_to: '',
+        due_date: '',
+        priority: TaskPriority.MEDIUM
+      });
       fetchData();
     }
   };
@@ -144,7 +166,7 @@ export default function AdminDashboard() {
                     <StatusBadge status={task.status} />
                   </div>
                   <p className="text-stone-500 text-sm max-w-2xl">{task.description}</p>
-                  <div className="flex items-center gap-4 mt-4">
+                  <div className="flex items-center gap-4 mt-4 flex-wrap">
                     <div className="flex items-center gap-1.5 text-xs text-stone-400">
                       <Users className="w-3.5 h-3.5" />
                       Assigned to: <span className="text-stone-600 font-medium">{task.assigned_to_name || 'Unassigned'}</span>
@@ -152,6 +174,14 @@ export default function AdminDashboard() {
                     <div className="flex items-center gap-1.5 text-xs text-stone-400">
                       <Clock className="w-3.5 h-3.5" />
                       Created: <span className="text-stone-600 font-medium">{new Date(task.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-stone-400">
+                      <Clock className="w-3.5 h-3.5" />
+                      Due: <span className="text-stone-600 font-medium">{task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-stone-400">
+                      <BarChart3 className="w-3.5 h-3.5" />
+                      Priority: <span className="text-stone-600 font-medium capitalize">{task.priority || TaskPriority.MEDIUM}</span>
                     </div>
                   </div>
                 </div>
@@ -166,7 +196,7 @@ export default function AdminDashboard() {
                     </button>
                   )}
                   <button 
-                    onClick={() => setEditingTask(task)}
+                    onClick={() => setEditingTask({ ...task, priority: task.priority || TaskPriority.MEDIUM })}
                     className="p-2 text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-all"
                   >
                     <Edit2 className="w-4 h-4" />
@@ -223,6 +253,27 @@ export default function AdminDashboard() {
                 {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
               </select>
             </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Due Date</label>
+              <input 
+                type="date"
+                value={newTask.due_date}
+                onChange={e => setNewTask({...newTask, due_date: e.target.value})}
+                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Priority</label>
+              <select 
+                value={newTask.priority}
+                onChange={e => setNewTask({...newTask, priority: e.target.value as TaskPriority})}
+                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
+              >
+                <option value={TaskPriority.LOW}>Low</option>
+                <option value={TaskPriority.MEDIUM}>Medium</option>
+                <option value={TaskPriority.HIGH}>High</option>
+              </select>
+            </div>
             <button type="submit" className="w-full bg-stone-900 text-stone-50 py-2.5 rounded-lg font-medium hover:bg-stone-800 transition-all">
               Create Task
             </button>
@@ -261,6 +312,27 @@ export default function AdminDashboard() {
               >
                 <option value="">Unassigned</option>
                 {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Due Date</label>
+              <input 
+                type="date"
+                value={toDateInputValue(editingTask.due_date)}
+                onChange={e => setEditingTask({...editingTask, due_date: e.target.value || null})}
+                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Priority</label>
+              <select 
+                value={editingTask.priority || TaskPriority.MEDIUM}
+                onChange={e => setEditingTask({...editingTask, priority: e.target.value as TaskPriority})}
+                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
+              >
+                <option value={TaskPriority.LOW}>Low</option>
+                <option value={TaskPriority.MEDIUM}>Medium</option>
+                <option value={TaskPriority.HIGH}>High</option>
               </select>
             </div>
             <div className="space-y-1.5">
