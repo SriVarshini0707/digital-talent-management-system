@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, CheckCircle, Clock, Send, BarChart3, Trash2, Edit2, Users, FileText, Eye, XCircle, ExternalLink } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Task, Analytics, User, TaskStatus, Submission, TaskPriority } from '../../types';
+import React, { useState, useEffect, useMemo } from "react";
+import { Plus, CheckCircle, Clock, Send, BarChart3, Trash2, Edit2, Users, FileText, Eye, XCircle, ExternalLink } from "lucide-react";
+import { motion } from "motion/react";
+import { Task, Analytics, User, TaskStatus, Submission, TaskPriority, TaskComment } from "../../types";
 
 export default function AdminDashboard() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -11,17 +11,21 @@ export default function AdminDashboard() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingSubmissions, setViewingSubmissions] = useState<{ task: Task, submissions: Submission[] } | null>(null);
   const [newTask, setNewTask] = useState({
-    title: '',
-    description: '',
-    assigned_to: '',
-    due_date: '',
+    title: "",
+    description: "",
+    assigned_to: "",
+    due_date: "",
     priority: TaskPriority.MEDIUM
   });
+  const [comments, setComments] = useState<TaskComment[]>([]);
+  const [commentText, setCommentText] = useState("");
+  const [replyTo, setReplyTo] = useState<TaskComment | null>(null);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
 
   const toDateInputValue = (value?: string | null) => {
-    if (!value) return '';
+    if (!value) return "";
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
+    if (Number.isNaN(date.getTime())) return "";
     return date.toISOString().slice(0, 10);
   };
 
@@ -29,39 +33,80 @@ export default function AdminDashboard() {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (!viewingSubmissions?.task) return;
+    fetchComments(viewingSubmissions.task.id);
+  }, [viewingSubmissions?.task?.id]);
+
   const fetchData = async () => {
     const [tasksRes, usersRes, analyticsRes] = await Promise.all([
-      fetch('/api/tasks', { credentials: 'include' }),
-      fetch('/api/users', { credentials: 'include' }),
-      fetch('/api/analytics', { credentials: 'include' })
+      fetch("/api/tasks", { credentials: "include" }),
+      fetch("/api/users", { credentials: "include" }),
+      fetch("/api/analytics", { credentials: "include" })
     ]);
     const tasksData = await tasksRes.json();
     const usersData = await usersRes.json();
     const analyticsData = await analyticsRes.json();
-    
+
     setTasks(Array.isArray(tasksData) ? tasksData : []);
     setUsers(Array.isArray(usersData) ? usersData : []);
     setAnalytics(analyticsData && !analyticsData.error ? analyticsData : null);
   };
 
+  const fetchComments = async (taskId: string) => {
+    setIsLoadingComments(true);
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/comments`, { credentials: "include" });
+      const data = await res.json();
+      setComments(Array.isArray(data) ? data : []);
+    } finally {
+      setIsLoadingComments(false);
+    }
+  };
+
+  const handlePostComment = async () => {
+    if (!viewingSubmissions?.task || !commentText.trim()) return;
+    const res = await fetch(`/api/tasks/${viewingSubmissions.task.id}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        content: commentText.trim(),
+        parent_id: replyTo?.id || null
+      })
+    });
+    if (res.ok) {
+      setCommentText("");
+      setReplyTo(null);
+      fetchComments(viewingSubmissions.task.id);
+    }
+  };
+
+  const closeReviewModal = () => {
+    setViewingSubmissions(null);
+    setComments([]);
+    setCommentText("");
+    setReplyTo(null);
+  };
+
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/tasks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
+    const res = await fetch("/api/tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({
         ...newTask,
         due_date: newTask.due_date || null
-      }),
+      })
     });
     if (res.ok) {
       setIsAddingTask(false);
       setNewTask({
-        title: '',
-        description: '',
-        assigned_to: '',
-        due_date: '',
+        title: "",
+        description: "",
+        assigned_to: "",
+        due_date: "",
         priority: TaskPriority.MEDIUM
       });
       fetchData();
@@ -70,10 +115,10 @@ export default function AdminDashboard() {
 
   const handleUpdateTask = async (task: Task) => {
     const res = await fetch(`/api/tasks/${task.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(task),
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(task)
     });
     if (res.ok) {
       setEditingTask(null);
@@ -82,27 +127,40 @@ export default function AdminDashboard() {
   };
 
   const handleViewSubmissions = async (task: Task) => {
-    const res = await fetch(`/api/submissions/${task.id}`, { credentials: 'include' });
+    const res = await fetch(`/api/submissions/${task.id}`, { credentials: "include" });
     const submissions = await res.json();
     setViewingSubmissions({ task, submissions });
   };
 
   const handleDeleteTask = async (id: string) => {
-    if (confirm('Are you sure you want to delete this task?')) {
-      await fetch(`/api/tasks/${id}`, { method: 'DELETE', credentials: 'include' });
+    if (confirm("Are you sure you want to delete this task?")) {
+      await fetch(`/api/tasks/${id}`, { method: "DELETE", credentials: "include" });
       fetchData();
     }
   };
 
   const handleApproveTask = async (task: Task) => {
     await handleUpdateTask({ ...task, status: TaskStatus.COMPLETED });
-    setViewingSubmissions(null);
+    closeReviewModal();
   };
 
   const handleRejectTask = async (task: Task, feedback: string) => {
     await handleUpdateTask({ ...task, status: TaskStatus.REJECTED, admin_feedback: feedback });
-    setViewingSubmissions(null);
+    closeReviewModal();
   };
+
+  const commentDepth = useMemo(() => {
+    const map = new Map(comments.map(c => [c.id, c]));
+    return (comment: TaskComment) => {
+      let depth = 0;
+      let current = comment;
+      while (current.parent_id && map.get(current.parent_id) && depth < 3) {
+        depth += 1;
+        current = map.get(current.parent_id)!;
+      }
+      return depth;
+    };
+  }, [comments]);
 
   return (
     <div className="space-y-8">
@@ -120,7 +178,6 @@ export default function AdminDashboard() {
         </button>
       </div>
 
-      {/* Analytics Grid */}
       {analytics && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <AnalyticsCard 
@@ -150,7 +207,6 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Task List */}
       <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-sm">
         <div className="px-6 py-4 border-b border-stone-100 flex justify-between items-center">
           <h2 className="font-bold">Task Management</h2>
@@ -169,7 +225,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center gap-4 mt-4 flex-wrap">
                     <div className="flex items-center gap-1.5 text-xs text-stone-400">
                       <Users className="w-3.5 h-3.5" />
-                      Assigned to: <span className="text-stone-600 font-medium">{task.assigned_to_name || 'Unassigned'}</span>
+                      Assigned to: <span className="text-stone-600 font-medium">{task.assigned_to_name || "Unassigned"}</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-stone-400">
                       <Clock className="w-3.5 h-3.5" />
@@ -177,7 +233,7 @@ export default function AdminDashboard() {
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-stone-400">
                       <Clock className="w-3.5 h-3.5" />
-                      Due: <span className="text-stone-600 font-medium">{task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}</span>
+                      Due: <span className="text-stone-600 font-medium">{task.due_date ? new Date(task.due_date).toLocaleDateString() : "No due date"}</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-stone-400">
                       <BarChart3 className="w-3.5 h-3.5" />
@@ -186,15 +242,13 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {task.status === TaskStatus.SUBMITTED && (
-                    <button 
-                      onClick={() => handleViewSubmissions(task)}
-                      className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider"
-                    >
-                      <Eye className="w-4 h-4" />
-                      Review
-                    </button>
-                  )}
+                  <button 
+                    onClick={() => handleViewSubmissions(task)}
+                    className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider"
+                  >
+                    <Eye className="w-4 h-4" />
+                    {task.status === TaskStatus.SUBMITTED ? "Review" : "Discuss"}
+                  </button>
                   <button 
                     onClick={() => setEditingTask({ ...task, priority: task.priority || TaskPriority.MEDIUM })}
                     className="p-2 text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-all"
@@ -219,7 +273,6 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Modals */}
       {isAddingTask && (
         <Modal title="Create New Task" onClose={() => setIsAddingTask(false)}>
           <form onSubmit={handleCreateTask} className="space-y-4">
@@ -228,7 +281,7 @@ export default function AdminDashboard() {
               <input 
                 required
                 value={newTask.title}
-                onChange={e => setNewTask({...newTask, title: e.target.value})}
+                onChange={e => setNewTask({ ...newTask, title: e.target.value })}
                 className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
               />
             </div>
@@ -238,7 +291,7 @@ export default function AdminDashboard() {
                 required
                 rows={3}
                 value={newTask.description}
-                onChange={e => setNewTask({...newTask, description: e.target.value})}
+                onChange={e => setNewTask({ ...newTask, description: e.target.value })}
                 className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm resize-none"
               />
             </div>
@@ -246,7 +299,7 @@ export default function AdminDashboard() {
               <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Assign To</label>
               <select 
                 value={newTask.assigned_to}
-                onChange={e => setNewTask({...newTask, assigned_to: e.target.value})}
+                onChange={e => setNewTask({ ...newTask, assigned_to: e.target.value })}
                 className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
               >
                 <option value="">Unassigned</option>
@@ -258,7 +311,7 @@ export default function AdminDashboard() {
               <input 
                 type="date"
                 value={newTask.due_date}
-                onChange={e => setNewTask({...newTask, due_date: e.target.value})}
+                onChange={e => setNewTask({ ...newTask, due_date: e.target.value })}
                 className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
               />
             </div>
@@ -266,7 +319,7 @@ export default function AdminDashboard() {
               <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Priority</label>
               <select 
                 value={newTask.priority}
-                onChange={e => setNewTask({...newTask, priority: e.target.value as TaskPriority})}
+                onChange={e => setNewTask({ ...newTask, priority: e.target.value as TaskPriority })}
                 className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
               >
                 <option value={TaskPriority.LOW}>Low</option>
@@ -289,7 +342,7 @@ export default function AdminDashboard() {
               <input 
                 required
                 value={editingTask.title}
-                onChange={e => setEditingTask({...editingTask, title: e.target.value})}
+                onChange={e => setEditingTask({ ...editingTask, title: e.target.value })}
                 className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
               />
             </div>
@@ -299,15 +352,15 @@ export default function AdminDashboard() {
                 required
                 rows={3}
                 value={editingTask.description}
-                onChange={e => setEditingTask({...editingTask, description: e.target.value})}
+                onChange={e => setEditingTask({ ...editingTask, description: e.target.value })}
                 className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm resize-none"
               />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Assign To</label>
               <select 
-                value={editingTask.assigned_to || ''}
-                onChange={e => setEditingTask({...editingTask, assigned_to: e.target.value || null})}
+                value={editingTask.assigned_to || ""}
+                onChange={e => setEditingTask({ ...editingTask, assigned_to: e.target.value || null })}
                 className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
               >
                 <option value="">Unassigned</option>
@@ -319,7 +372,7 @@ export default function AdminDashboard() {
               <input 
                 type="date"
                 value={toDateInputValue(editingTask.due_date)}
-                onChange={e => setEditingTask({...editingTask, due_date: e.target.value || null})}
+                onChange={e => setEditingTask({ ...editingTask, due_date: e.target.value || null })}
                 className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
               />
             </div>
@@ -327,7 +380,7 @@ export default function AdminDashboard() {
               <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Priority</label>
               <select 
                 value={editingTask.priority || TaskPriority.MEDIUM}
-                onChange={e => setEditingTask({...editingTask, priority: e.target.value as TaskPriority})}
+                onChange={e => setEditingTask({ ...editingTask, priority: e.target.value as TaskPriority })}
                 className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
               >
                 <option value={TaskPriority.LOW}>Low</option>
@@ -339,20 +392,21 @@ export default function AdminDashboard() {
               <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Status</label>
               <select 
                 value={editingTask.status}
-                onChange={e => setEditingTask({...editingTask, status: e.target.value as TaskStatus})}
+                onChange={e => setEditingTask({ ...editingTask, status: e.target.value as TaskStatus })}
                 className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
               >
                 <option value={TaskStatus.PENDING}>Pending</option>
                 <option value={TaskStatus.SUBMITTED}>Submitted</option>
                 <option value={TaskStatus.COMPLETED}>Completed</option>
+                <option value={TaskStatus.REJECTED}>Rejected</option>
               </select>
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Admin Feedback</label>
               <textarea 
                 rows={2}
-                value={editingTask.admin_feedback || ''}
-                onChange={e => setEditingTask({...editingTask, admin_feedback: e.target.value})}
+                value={editingTask.admin_feedback || ""}
+                onChange={e => setEditingTask({ ...editingTask, admin_feedback: e.target.value })}
                 className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm resize-none"
                 placeholder="Provide feedback for rejection or approval..."
               />
@@ -364,7 +418,7 @@ export default function AdminDashboard() {
         </Modal>
       )}
       {viewingSubmissions && (
-        <Modal title={`Review Submissions: ${viewingSubmissions.task.title}`} onClose={() => setViewingSubmissions(null)}>
+        <Modal title={`Review Submissions: ${viewingSubmissions.task.title}`} onClose={closeReviewModal}>
           <div className="space-y-6">
             <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
               {viewingSubmissions.submissions.map((sub) => (
@@ -385,11 +439,90 @@ export default function AdminDashboard() {
                       View Attached Document
                     </a>
                   )}
+                  {sub.attachments && sub.attachments.length > 0 && (
+                    <div className="space-y-2">
+                      {sub.attachments.map((file, index) => (
+                        <a
+                          key={`${file.file_url}-${index}`}
+                          href={file.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block text-xs text-blue-600 hover:underline"
+                        >
+                          {file.original_name}
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
               {viewingSubmissions.submissions.length === 0 && (
                 <div className="text-center py-8 text-stone-400 italic">No submissions found.</div>
               )}
+            </div>
+
+            <div className="space-y-3 pt-4 border-t border-stone-100">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">Discussion</p>
+                {replyTo && (
+                  <button
+                    type="button"
+                    onClick={() => setReplyTo(null)}
+                    className="text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-stone-700"
+                  >
+                    Cancel Reply
+                  </button>
+                )}
+              </div>
+              <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
+                {isLoadingComments && (
+                  <p className="text-xs text-stone-400">Loading comments...</p>
+                )}
+                {!isLoadingComments && comments.length === 0 && (
+                  <p className="text-xs text-stone-400 italic">No comments yet.</p>
+                )}
+                {comments.map((comment) => (
+                  <div
+                    key={comment.id}
+                    style={{ marginLeft: commentDepth(comment) * 16 }}
+                    className="border border-stone-100 bg-stone-50 rounded-lg px-3 py-2"
+                  >
+                    <div className="flex items-center justify-between text-[10px] text-stone-400 uppercase tracking-widest">
+                      <span>{comment.user_name} · {comment.user_role}</span>
+                      <span>{new Date(comment.created_at).toLocaleString()}</span>
+                    </div>
+                    <p className="text-xs text-stone-700 mt-1 whitespace-pre-wrap">{comment.content}</p>
+                    <button
+                      type="button"
+                      onClick={() => setReplyTo(comment)}
+                      className="mt-2 text-[10px] font-semibold uppercase tracking-widest text-stone-500 hover:text-stone-800"
+                    >
+                      Reply
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {replyTo && (
+                <div className="text-[10px] text-stone-400 uppercase tracking-widest">
+                  Replying to {replyTo.user_name}
+                </div>
+              )}
+              <textarea
+                rows={2}
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                placeholder="Add a comment or reply..."
+                className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm resize-none"
+              />
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handlePostComment}
+                  className="px-4 py-2 bg-stone-900 text-stone-50 rounded-lg text-xs font-semibold uppercase tracking-widest hover:bg-stone-800"
+                >
+                  Post Comment
+                </button>
+              </div>
             </div>
             
             <div className="space-y-4 pt-4 border-t border-stone-100">
@@ -405,7 +538,7 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-2 gap-3">
                 <button 
                   onClick={() => {
-                    const feedback = (document.getElementById('review-feedback') as HTMLTextAreaElement).value;
+                    const feedback = (document.getElementById("review-feedback") as HTMLTextAreaElement).value;
                     handleRejectTask(viewingSubmissions.task, feedback);
                   }}
                   className="py-2.5 rounded-lg font-bold text-xs uppercase tracking-widest border border-red-200 text-red-600 hover:bg-red-50 transition-all flex items-center justify-center gap-2"
@@ -415,7 +548,7 @@ export default function AdminDashboard() {
                 </button>
                 <button 
                   onClick={() => {
-                    const feedback = (document.getElementById('review-feedback') as HTMLTextAreaElement).value;
+                    const feedback = (document.getElementById("review-feedback") as HTMLTextAreaElement).value;
                     handleApproveTask({ ...viewingSubmissions.task, admin_feedback: feedback });
                   }}
                   className="py-2.5 rounded-lg font-bold text-xs uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 shadow-sm"
@@ -450,10 +583,10 @@ function AnalyticsCard({ label, value, icon, color }: { label: string, value: st
 
 function StatusBadge({ status }: { status: TaskStatus }) {
   const styles = {
-    [TaskStatus.PENDING]: 'bg-amber-50 text-amber-700 border-amber-100',
-    [TaskStatus.SUBMITTED]: 'bg-blue-50 text-blue-700 border-blue-100',
-    [TaskStatus.COMPLETED]: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-    [TaskStatus.REJECTED]: 'bg-red-50 text-red-700 border-red-100',
+    [TaskStatus.PENDING]: "bg-amber-50 text-amber-700 border-amber-100",
+    [TaskStatus.SUBMITTED]: "bg-blue-50 text-blue-700 border-blue-100",
+    [TaskStatus.COMPLETED]: "bg-emerald-50 text-emerald-700 border-emerald-100",
+    [TaskStatus.REJECTED]: "bg-red-50 text-red-700 border-red-100"
   };
   return (
     <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest border ${styles[status]}`}>
