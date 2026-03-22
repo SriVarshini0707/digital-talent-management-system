@@ -46,12 +46,48 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { type: String, default: "user", enum: ["user", "admin"] }
+  role: { type: String, default: "user", enum: ["user", "admin"] },
+  notifications: {
+    email: { type: Boolean, default: true },
+    in_app: { type: Boolean, default: true }
+  },
+  two_factor_enabled: { type: Boolean, default: false }
 }, {
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
 userSchema.virtual("id").get(function() { return this._id.toHexString(); });
+
+const userSessionSchema = new mongoose.Schema({
+  user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  login_at: { type: Date, default: Date.now },
+  last_activity_at: { type: Date, default: Date.now },
+  logout_at: { type: Date },
+  status: { type: String, default: "active", enum: ["active", "offline"] },
+  ip_address: { type: String },
+  user_agent: { type: String }
+}, {
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+userSessionSchema.virtual("id").get(function() { return this._id.toHexString(); });
+
+const activityLogSchema = new mongoose.Schema({
+  user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  action: { type: String, required: true },
+  metadata: { type: mongoose.Schema.Types.Mixed },
+  created_at: { type: Date, default: Date.now }
+}, {
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+activityLogSchema.virtual("id").get(function() { return this._id.toHexString(); });
+
+const taskRevisionSchema = new mongoose.Schema({
+  feedback: { type: String, required: true },
+  admin_name: { type: String },
+  created_at: { type: Date, default: Date.now }
+}, { _id: false });
 
 const taskSchema = new mongoose.Schema({
   title: { type: String, required: true },
@@ -59,8 +95,10 @@ const taskSchema = new mongoose.Schema({
   status: { type: String, default: "pending", enum: ["pending", "submitted", "completed", "rejected"] },
   assigned_to: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   due_date: { type: Date },
-  priority: { type: String, default: "medium", enum: ["low", "medium", "high"] },
+  priority: { type: String, default: "medium", enum: ["low", "medium", "high", "urgent"] },
+  categories: { type: [String], default: [] },
   admin_feedback: { type: String },
+  revision_history: { type: [taskRevisionSchema], default: [] },
   created_at: { type: Date, default: Date.now }
 }, {
   toJSON: { virtuals: true },
@@ -101,6 +139,8 @@ const taskCommentSchema = new mongoose.Schema({
 taskCommentSchema.virtual("id").get(function() { return this._id.toHexString(); });
 
 const User = mongoose.model("User", userSchema);
+const UserSession = mongoose.model("UserSession", userSessionSchema);
+const ActivityLog = mongoose.model("ActivityLog", activityLogSchema);
 const Task = mongoose.model("Task", taskSchema);
 const Submission = mongoose.model("Submission", submissionSchema);
 const TaskComment = mongoose.model("TaskComment", taskCommentSchema);
@@ -168,6 +208,36 @@ async function startServer() {
 
   app.use("/uploads", express.static(uploadDir));
 
+  const normalizeCategories = (input: any): string[] => {
+    if (Array.isArray(input)) {
+      return input
+        .map((item) => (typeof item === "string" ? item.trim() : ""))
+        .filter(Boolean)
+        .map((item) => item.replace(/^#/, ""));
+    }
+    if (typeof input === "string") {
+      return input
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .map((item) => item.replace(/^#/, ""));
+    }
+    return [];
+  };
+
+  const logActivity = async (userId: string, action: string, metadata?: any) => {
+    if (!userId || !action) return;
+    try {
+      await ActivityLog.create({
+        user_id: userId,
+        action,
+        metadata: metadata || null
+      });
+    } catch (err) {
+      // avoid breaking the request if logging fails
+    }
+  };
+
   // --- Auth Middleware ---
   const authenticate = (req: any, res: any, next: any) => {
     const token = req.cookies.token;
@@ -175,6 +245,13 @@ async function startServer() {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
       req.user = decoded;
+      if (decoded?.session_id) {
+        const now = new Date();
+        UserSession.findByIdAndUpdate(decoded.session_id, {
+          last_activity_at: now,
+          status: "active"
+        }).catch(() => {});
+      }
       next();
     } catch (err) {
       res.status(401).json({ error: "Invalid token" });
@@ -205,8 +282,16 @@ async function startServer() {
     if (!user || !bcrypt.compareSync(password, user.password)) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
+    const session = await UserSession.create({
+      user_id: user._id,
+      login_at: new Date(),
+      last_activity_at: new Date(),
+      status: "active",
+      ip_address: req.ip,
+      user_agent: req.headers["user-agent"] || "unknown"
+    });
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role, name: user.name },
+      { id: user.id, email: user.email, role: user.role, name: user.name, session_id: session.id },
       JWT_SECRET,
       { expiresIn: "1d" }
     );
@@ -215,16 +300,106 @@ async function startServer() {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax"
     });
+    await logActivity(user.id, "Logged in");
     res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
   });
 
   app.post("/api/auth/logout", (_req, res) => {
+    const token = _req.cookies.token;
+    if (token) {
+      try {
+        const decoded: any = jwt.verify(token, JWT_SECRET);
+        if (decoded?.session_id) {
+          UserSession.findByIdAndUpdate(decoded.session_id, {
+            logout_at: new Date(),
+            status: "offline"
+          }).catch(() => {});
+        }
+        if (decoded?.id) {
+          logActivity(decoded.id, "Logged out");
+        }
+      } catch (err) {
+        // ignore invalid token on logout
+      }
+    }
     res.clearCookie("token");
     res.json({ success: true });
   });
 
   app.get("/api/auth/me", authenticate, (req: any, res) => {
     res.json({ user: req.user });
+  });
+
+  app.get("/api/settings/me", authenticate, async (req: any, res) => {
+    try {
+      const user = await User.findById(req.user.id).select("name email role notifications two_factor_enabled");
+      if (!user) return res.status(404).json({ error: "User not found" });
+      res.json({ user });
+    } catch (err) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.put("/api/settings/me", authenticate, async (req: any, res) => {
+    const { name, email, notifications, two_factor_enabled } = req.body || {};
+    try {
+      const user = await User.findById(req.user.id);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      if (email && email !== user.email) {
+        const existing = await User.findOne({ email });
+        if (existing) return res.status(400).json({ error: "Email already exists" });
+        user.email = email;
+      }
+      if (name) user.name = name;
+      if (notifications) {
+        user.notifications = {
+          email: typeof notifications.email === "boolean" ? notifications.email : user.notifications?.email ?? true,
+          in_app: typeof notifications.in_app === "boolean" ? notifications.in_app : user.notifications?.in_app ?? true
+        };
+      }
+      if (typeof two_factor_enabled === "boolean") {
+        user.two_factor_enabled = two_factor_enabled;
+      }
+      await user.save();
+      await logActivity(req.user.id, "Updated profile settings");
+
+      const token = jwt.sign(
+        { id: user.id, email: user.email, role: user.role, name: user.name, session_id: req.user.session_id },
+        JWT_SECRET,
+        { expiresIn: "1d" }
+      );
+      res.cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax"
+      });
+
+      res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role, notifications: user.notifications, two_factor_enabled: user.two_factor_enabled } });
+    } catch (err) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.put("/api/settings/password", authenticate, async (req: any, res) => {
+    const { current_password, new_password } = req.body || {};
+    if (!current_password || !new_password) {
+      return res.status(400).json({ error: "Current and new password are required" });
+    }
+    if (new_password.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters" });
+    }
+    try {
+      const user = await User.findById(req.user.id);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      const ok = bcrypt.compareSync(current_password, user.password);
+      if (!ok) return res.status(400).json({ error: "Current password is incorrect" });
+      user.password = bcrypt.hashSync(new_password, 10);
+      await user.save();
+      await logActivity(req.user.id, "Changed password");
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "Internal server error" });
+    }
   });
 
   // --- Task Routes ---
@@ -254,14 +429,15 @@ async function startServer() {
   });
 
   app.post("/api/tasks", authenticate, isAdmin, async (req, res) => {
-    const { title, description, assigned_to, due_date, priority } = req.body;
+    const { title, description, assigned_to, due_date, priority, categories } = req.body;
     try {
       const task = new Task({
         title,
         description,
         assigned_to: assigned_to || null,
         due_date: due_date ? new Date(due_date) : null,
-        priority: priority || "medium"
+        priority: priority || "medium",
+        categories: normalizeCategories(categories)
       });
       await task.save();
       res.json({ success: true, id: task.id });
@@ -271,17 +447,25 @@ async function startServer() {
   });
 
   app.put("/api/tasks/:id", authenticate, isAdmin, async (req, res) => {
-    const { title, description, assigned_to, status, admin_feedback, due_date, priority } = req.body;
+    const { title, description, assigned_to, status, admin_feedback, due_date, priority, categories } = req.body;
     try {
-      await Task.findByIdAndUpdate(req.params.id, {
-        title,
-        description,
-        assigned_to: assigned_to || null,
-        status,
-        admin_feedback,
-        due_date: due_date ? new Date(due_date) : null,
-        priority
-      });
+      const task = await Task.findById(req.params.id);
+      if (!task) return res.status(404).json({ error: "Task not found" });
+      if (status === "rejected" && admin_feedback && admin_feedback.trim()) {
+        task.revision_history.push({
+          feedback: admin_feedback.trim(),
+          admin_name: req.user?.name || "Admin"
+        });
+      }
+      task.title = title;
+      task.description = description;
+      task.assigned_to = assigned_to || null;
+      task.status = status;
+      task.admin_feedback = admin_feedback;
+      task.due_date = due_date ? new Date(due_date) : null;
+      task.priority = priority;
+      task.categories = normalizeCategories(categories);
+      await task.save();
       res.json({ success: true });
     } catch (err) {
       res.status(400).json({ error: "Invalid task data" });
@@ -378,6 +562,7 @@ async function startServer() {
       });
       await submission.save();
       await Task.findByIdAndUpdate(task_id, { status: "submitted" });
+      await logActivity(req.user.id, "Submitted task", { task_id });
       res.json({ success: true });
     } catch (err) {
       res.status(400).json({ error: "Invalid submission data" });
@@ -431,6 +616,67 @@ async function startServer() {
     try {
       const users = await User.find({ role: "user" }).select("name email role");
       res.json(users);
+    } catch (err) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get("/api/sessions", authenticate, isAdmin, async (_req, res) => {
+    try {
+      const sessions = await UserSession.find()
+        .populate("user_id", "name email role")
+        .sort({ login_at: -1 })
+        .limit(200);
+
+      const now = new Date();
+      const mapped = sessions.map((s) => {
+        const session = s.toJSON();
+        const lastActivity = session.last_activity_at ? new Date(session.last_activity_at) : null;
+        const minutesSince = lastActivity ? (now.getTime() - lastActivity.getTime()) / (1000 * 60) : Infinity;
+        let status = "active";
+        if (session.logout_at || minutesSince > 5) {
+          status = "offline";
+        }
+        return {
+          ...session,
+          status,
+          user_name: (s.user_id as any)?.name || "Unknown",
+          user_email: (s.user_id as any)?.email || "unknown"
+        };
+      });
+
+      res.json(mapped);
+    } catch (err) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.post("/api/activity-log", authenticate, async (req: any, res) => {
+    const { action, metadata } = req.body || {};
+    if (!action || typeof action !== "string") {
+      return res.status(400).json({ error: "Action is required" });
+    }
+    await logActivity(req.user.id, action.trim(), metadata || null);
+    res.json({ success: true });
+  });
+
+  app.get("/api/activity-logs", authenticate, isAdmin, async (_req, res) => {
+    try {
+      const logs = await ActivityLog.find()
+        .populate("user_id", "name email role")
+        .sort({ created_at: -1 })
+        .limit(200);
+
+      const mapped = logs.map((l) => {
+        const log = l.toJSON();
+        return {
+          ...log,
+          user_name: (l.user_id as any)?.name || "Unknown",
+          user_email: (l.user_id as any)?.email || "unknown"
+        };
+      });
+
+      res.json(mapped);
     } catch (err) {
       res.status(500).json({ error: "Internal server error" });
     }

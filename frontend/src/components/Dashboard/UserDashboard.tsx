@@ -31,6 +31,15 @@ export default function UserDashboard() {
   }, []);
 
   useEffect(() => {
+    fetch("/api/activity-log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ action: "Viewed dashboard" })
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (!submittingTask) return;
     fetchComments(submittingTask.id);
   }, [submittingTask?.id]);
@@ -137,6 +146,36 @@ export default function UserDashboard() {
     submittingTask.status === TaskStatus.PENDING || submittingTask.status === TaskStatus.REJECTED
   );
 
+  const getDaysRemainingLabel = (dueDate?: string | null) => {
+    if (!dueDate) return "No due date";
+    const due = new Date(dueDate);
+    if (Number.isNaN(due.getTime())) return "No due date";
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const startOfDue = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+    const diffMs = startOfDue.getTime() - startOfToday.getTime();
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays > 0) return `${diffDays} day${diffDays === 1 ? "" : "s"} remaining`;
+    if (diffDays === 0) return "Due today";
+    const overdue = Math.abs(diffDays);
+    return `Overdue by ${overdue} day${overdue === 1 ? "" : "s"}`;
+  };
+
+  const getPriorityBadge = (priority?: TaskPriority) => {
+    const value = priority || TaskPriority.MEDIUM;
+    const styles = {
+      [TaskPriority.LOW]: "bg-sky-50 text-sky-700 border-sky-100",
+      [TaskPriority.MEDIUM]: "bg-amber-50 text-amber-700 border-amber-100",
+      [TaskPriority.HIGH]: "bg-orange-50 text-orange-700 border-orange-100",
+      [TaskPriority.URGENT]: "bg-red-50 text-red-700 border-red-100"
+    };
+    return (
+      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest border ${styles[value]}`}>
+        {value}
+      </span>
+    );
+  };
+
   return (
     <div className="space-y-8">
       <div>
@@ -161,10 +200,38 @@ export default function UserDashboard() {
               <div className="space-y-2">
                 <h3 className="font-bold text-xl leading-tight">{task.title}</h3>
                 <p className="text-stone-500 text-sm line-clamp-3">{task.description}</p>
-                {task.admin_feedback && (
+                {task.revision_history && task.revision_history.length > 0 && (
+                  <div className="mt-3 p-3 bg-stone-50 rounded-lg border border-stone-100">
+                    <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-2">Revision History</p>
+                    <div className="space-y-2">
+                      {[...task.revision_history].reverse().map((entry, index) => (
+                        <div key={`${task.id}-history-${index}`} className="text-xs text-stone-600">
+                          <div className="flex items-center justify-between text-[10px] text-stone-400 uppercase tracking-widest">
+                            <span>{entry.admin_name || "Admin"}</span>
+                            <span>{new Date(entry.created_at).toLocaleString()}</span>
+                          </div>
+                          <p className="mt-1 italic">"{entry.feedback}"</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {(!task.revision_history || task.revision_history.length === 0) && task.admin_feedback && (
                   <div className="mt-3 p-3 bg-stone-50 rounded-lg border border-stone-100">
                     <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Admin Feedback</p>
                     <p className="text-xs text-stone-600 italic">"{task.admin_feedback}"</p>
+                  </div>
+                )}
+                {task.categories && task.categories.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {task.categories.map((category) => (
+                      <span
+                        key={`${task.id}-${category}`}
+                        className="text-[10px] font-semibold uppercase tracking-wider bg-stone-100 text-stone-600 border border-stone-200 px-2 py-1 rounded-full"
+                      >
+                        #{category}
+                      </span>
+                    ))}
                   </div>
                 )}
               </div>
@@ -178,8 +245,12 @@ export default function UserDashboard() {
                   Due: {task.due_date ? new Date(task.due_date).toLocaleDateString() : "No due date"}
                 </div>
                 <div className="flex items-center gap-2">
+                  <Clock className="w-3.5 h-3.5" />
+                  Days Remaining: {getDaysRemainingLabel(task.due_date)}
+                </div>
+                <div className="flex items-center gap-2">
                   <FileText className="w-3.5 h-3.5" />
-                  Priority: <span className="capitalize text-stone-600">{task.priority || TaskPriority.MEDIUM}</span>
+                  Priority: {getPriorityBadge(task.priority)}
                 </div>
               </div>
             </div>

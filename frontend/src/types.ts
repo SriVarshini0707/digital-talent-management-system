@@ -8,6 +8,11 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  notifications?: {
+    email: boolean;
+    in_app: boolean;
+  };
+  two_factor_enabled?: boolean;
 }
 
 export enum TaskStatus {
@@ -20,7 +25,14 @@ export enum TaskStatus {
 export enum TaskPriority {
   LOW = "low",
   MEDIUM = "medium",
-  HIGH = "high"
+  HIGH = "high",
+  URGENT = "urgent"
+}
+
+export interface TaskRevision {
+  feedback: string;
+  admin_name?: string;
+  created_at: string;
 }
 
 export interface Task {
@@ -33,6 +45,8 @@ export interface Task {
   admin_feedback?: string;
   due_date?: string | null;
   priority?: TaskPriority;
+  categories?: string[];
+  revision_history?: TaskRevision[];
   created_at: string;
 }
 
@@ -70,5 +84,39 @@ export interface Analytics {
   completed: number;
   pending: number;
   submitted: number;
+  rejected?: number;
   completionRate: number;
+}
+
+export interface UserSession {
+  id: string;
+  user_id: string;
+  user_name: string;
+  user_email: string;
+  login_at: string;
+  last_activity_at: string;
+  logout_at?: string;
+  status: "active" | "offline";
+  ip_address?: string;
+  user_agent?: string;
+}
+
+export interface ActivityLog {
+  id: string;
+  user_id: string;
+  user_name: string;
+  user_email: string;
+  action: string;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface UserSettingsUpdate {
+  name: string;
+  email: string;
+  notifications: {
+    email: boolean;
+    in_app: boolean;
+  };
+  two_factor_enabled: boolean;
 }
