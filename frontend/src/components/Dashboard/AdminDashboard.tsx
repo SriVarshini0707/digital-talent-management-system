@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Plus, CheckCircle, Clock, Send, BarChart3, Trash2, Edit2, Users, FileText, Eye, XCircle, ExternalLink, LayoutDashboard, ListChecks, Activity as ActivityIcon, Users2, Menu, X, Settings, UserCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Plus, CheckCircle, Clock, Send, BarChart3, Trash2, Edit2, Users, FileText, Eye, XCircle, ExternalLink, LayoutDashboard, ListChecks, Activity as ActivityIcon, Users2, Settings, UserCircle } from "lucide-react";
 import { motion } from "motion/react";
 import { Task, Analytics, User, TaskStatus, Submission, TaskPriority, TaskComment, UserSession, ActivityLog, UserSettingsUpdate } from "../../types";
 
@@ -14,18 +15,10 @@ export default function AdminDashboard() {
     notifications: { email: true, in_app: true },
     two_factor_enabled: false
   });
-  const [passwordForm, setPasswordForm] = useState({
-    current_password: "",
-    new_password: "",
-    confirm_password: ""
-  });
   const [settingsStatus, setSettingsStatus] = useState<string | null>(null);
-  const [passwordStatus, setPasswordStatus] = useState<string | null>(null);
   const [sessions, setSessions] = useState<UserSession[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [activeSection, setActiveSection] = useState<"overview" | "tasks" | "sessions" | "logs" | "profile">("overview");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editingCategories, setEditingCategories] = useState("");
@@ -43,6 +36,7 @@ export default function AdminDashboard() {
   const [commentText, setCommentText] = useState("");
   const [replyTo, setReplyTo] = useState<TaskComment | null>(null);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const navigate = useNavigate();
 
   const toDateInputValue = (value?: string | null) => {
     if (!value) return "";
@@ -354,126 +348,47 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleChangePassword = async () => {
-    setPasswordStatus(null);
-    if (passwordForm.new_password !== passwordForm.confirm_password) {
-      setPasswordStatus("New password and confirm password must match.");
-      return;
-    }
-    const res = await fetch("/api/settings/password", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        current_password: passwordForm.current_password,
-        new_password: passwordForm.new_password
-      })
-    });
-    const data = await res.json();
-    if (res.ok) {
-      setPasswordStatus("Password updated.");
-      setPasswordForm({ current_password: "", new_password: "", confirm_password: "" });
-    } else {
-      setPasswordStatus(data?.error || "Failed to update password.");
-    }
-  };
-
   return (
     <>
-    <div className="flex gap-6">
-      <aside className={`shrink-0 hidden lg:block ${isSidebarExpanded ? "w-80" : "w-20"}`}>
-        <div className="bg-white border border-stone-200 rounded-2xl shadow-sm p-4 space-y-4 sticky top-6 min-h-[calc(100vh-3rem)] flex flex-col">
-          <div className={`flex items-center ${isSidebarExpanded ? "justify-between" : "justify-center"}`}>
-            {isSidebarExpanded ? (
-              <div>
-                <h1 className="text-xl font-bold tracking-tight">Admin</h1>
-                <p className="text-xs text-stone-500">Control center</p>
-              </div>
-            ) : (
-              <span className="text-xs font-semibold uppercase tracking-wider text-stone-500">Admin</span>
-            )}
-            {isSidebarExpanded && (
-              <button
-                type="button"
-                onClick={() => setIsSidebarExpanded(false)}
-                className="p-2 text-stone-400 hover:text-stone-900"
-                aria-label="Collapse sidebar"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-
-          {!isSidebarExpanded && (
-            <button
-              type="button"
-              onClick={() => setIsSidebarExpanded(true)}
-              className="w-full p-2 border border-stone-200 rounded-lg text-stone-500 hover:text-stone-900 hover:bg-stone-50"
-              aria-label="Expand sidebar"
-            >
-              <Menu className="w-4 h-4 mx-auto" />
-            </button>
-          )}
-
-          {isSidebarExpanded && (
-            <div className="bg-stone-50 border border-stone-200 rounded-xl p-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-stone-900 text-stone-50 flex items-center justify-center font-bold">
-                  {(adminUser?.name || "A").slice(0, 1).toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-stone-800 truncate">{adminUser?.name || "Admin User"}</p>
-                  <p className="text-xs text-stone-500 truncate">{adminUser?.email || "admin@company.com"}</p>
-                </div>
-              </div>
-              <div className="mt-3 flex items-center justify-between text-[10px] uppercase tracking-widest text-stone-400">
-                <span>Role</span>
-                <span className="text-stone-600 font-semibold">{adminUser?.role || "admin"}</span>
-              </div>
-            </div>
-          )}
-
-          <nav className={`space-y-1 ${isSidebarExpanded ? "" : "pt-1"}`}>
-            <NavButton icon={<LayoutDashboard className="w-4 h-4" />} label="Overview" active={activeSection === "overview"} onClick={() => setActiveSection("overview")} compact={!isSidebarExpanded} />
-            <NavButton icon={<ListChecks className="w-4 h-4" />} label="Tasks" active={activeSection === "tasks"} onClick={() => setActiveSection("tasks")} compact={!isSidebarExpanded} />
-            <NavButton icon={<Users2 className="w-4 h-4" />} label="User Sessions" active={activeSection === "sessions"} onClick={() => setActiveSection("sessions")} compact={!isSidebarExpanded} />
-            <NavButton icon={<ActivityIcon className="w-4 h-4" />} label="Activity Logs" active={activeSection === "logs"} onClick={() => setActiveSection("logs")} compact={!isSidebarExpanded} />
-          </nav>
-          <button 
-            onClick={() => setIsAddingTask(true)}
-            className={`${isSidebarExpanded ? "w-full" : "w-full"} bg-stone-900 text-stone-50 px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-stone-800 transition-all`}
-          >
-            <Plus className="w-4 h-4" />
-            {isSidebarExpanded && "Create Task"}
-          </button>
-
-          <div className="mt-auto pt-4 border-t border-stone-100">
-            <NavButton
-              icon={<UserCircle className="w-5 h-5" />}
-              label="Profile & Settings"
-              active={activeSection === "profile"}
-              onClick={() => setActiveSection("profile")}
-              compact={!isSidebarExpanded}
-            />
-          </div>
+    <div className="space-y-8">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+          <p className="text-stone-500 mt-1">Manage talent tasks and track performance</p>
         </div>
-      </aside>
+        <button
+          type="button"
+          onClick={() => setIsAddingTask(true)}
+          className="bg-stone-900 text-stone-50 px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-stone-800 transition-all"
+        >
+          <Plus className="w-4 h-4" />
+          Create Task
+        </button>
+      </div>
 
-      <div className="flex-1 space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-            <p className="text-stone-500 mt-1">Manage talent tasks and track performance</p>
-          </div>
+      <div className="bg-white border border-stone-200 rounded-2xl shadow-sm p-3 sm:p-4 flex flex-wrap gap-2">
+        {[
+          { id: "overview", label: "Overview", icon: <LayoutDashboard className="w-4 h-4" /> },
+          { id: "tasks", label: "Tasks", icon: <ListChecks className="w-4 h-4" /> },
+          { id: "sessions", label: "User Sessions", icon: <Users2 className="w-4 h-4" /> },
+          { id: "logs", label: "Activity Logs", icon: <ActivityIcon className="w-4 h-4" /> },
+          { id: "profile", label: "Profile & Settings", icon: <UserCircle className="w-4 h-4" /> }
+        ].map((item) => (
           <button
+            key={item.id}
             type="button"
-            onClick={() => setIsSidebarOpen(true)}
-            className="lg:hidden inline-flex items-center gap-2 px-3 py-2 border border-stone-200 rounded-lg text-sm text-stone-600 hover:bg-stone-50"
+            onClick={() => setActiveSection(item.id as typeof activeSection)}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-widest border ${
+              activeSection === item.id
+                ? "bg-stone-900 text-stone-50 border-stone-900"
+                : "bg-white text-stone-600 border-stone-200 hover:border-stone-300"
+            }`}
           >
-            <Menu className="w-4 h-4" />
-            Menu
+            {item.icon}
+            {item.label}
           </button>
-        </div>
+        ))}
+      </div>
 
         {activeSection === "overview" && (
           <>
@@ -535,7 +450,7 @@ export default function AdminDashboard() {
                         <th className="text-left px-6 py-3">Login</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-stone-100">
+                    <tbody className="p-4 space-y-4">
                       {sessions.slice(0, 6).map((session) => (
                         <tr key={session.id} className="hover:bg-stone-50/60">
                           <td className="px-6 py-3">
@@ -576,7 +491,7 @@ export default function AdminDashboard() {
                         <th className="text-left px-6 py-3">Time</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-stone-100">
+                    <tbody className="p-4 space-y-4">
                       {activityLogs.slice(0, 6).map((log) => (
                         <tr key={log.id} className="hover:bg-stone-50/60">
                           <td className="px-6 py-3">
@@ -621,7 +536,7 @@ export default function AdminDashboard() {
                     <th className="text-left px-6 py-3">Logout Time</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-stone-100">
+                <tbody className="p-4 space-y-4">
                   {sessions.map((session) => (
                     <tr key={session.id} className="hover:bg-stone-50/60">
                       <td className="px-6 py-3">
@@ -670,7 +585,7 @@ export default function AdminDashboard() {
                     <th className="text-left px-6 py-3">Time</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-stone-100">
+                <tbody className="p-4 space-y-4">
                   {activityLogs.map((log) => (
                     <tr key={log.id} className="hover:bg-stone-50/60">
                       <td className="px-6 py-3">
@@ -717,9 +632,9 @@ export default function AdminDashboard() {
                 <h2 className="font-bold">Task Management</h2>
                 <span className="text-xs font-medium text-stone-400 uppercase tracking-wider">{filteredTasks.length} Tasks</span>
               </div>
-              <div className="divide-y divide-stone-100">
+              <div className="p-4 space-y-4">
                 {filteredTasks.map((task) => (
-                  <div key={task.id} className="p-6 hover:bg-stone-50/50 transition-colors group">
+                  <div key={task.id} className="p-6 border border-stone-200 rounded-xl bg-white shadow-sm hover:shadow-md hover:bg-stone-50/50 transition-all group">
                     <div className="flex justify-between items-start">
                       <div className="space-y-1">
                         <div className="flex items-center gap-3">
@@ -797,31 +712,59 @@ export default function AdminDashboard() {
         )}
 
         {activeSection === "profile" && (
-          <div className="space-y-6">
-            <div className="bg-white border border-stone-200 rounded-2xl shadow-sm overflow-hidden">
-              <div className="px-6 py-6 border-b border-stone-100 flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-stone-900 text-stone-50 flex items-center justify-center text-2xl font-bold">
-                  {(adminUser?.name || "A").slice(0, 1).toUpperCase()}
+          <div className="space-y-8">
+            <div className="relative overflow-hidden rounded-3xl border border-stone-200 shadow-sm">
+              <div className="absolute inset-0 bg-gradient-to-r from-stone-900 via-stone-800 to-stone-700" />
+              <div className="absolute inset-0 opacity-50 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.2),_transparent_55%)]" />
+              <div className="relative px-6 py-8 sm:px-8 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between text-stone-50">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 text-stone-50 flex items-center justify-center text-2xl font-bold">
+                    {(adminUser?.name || "A").slice(0, 1).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.35em] text-stone-200">Profile</p>
+                    <h2 className="text-2xl font-semibold">{adminUser?.name || "Admin User"}</h2>
+                    <p className="text-sm text-stone-200">{adminUser?.email || "admin@company.com"}</p>
+                    <span className="inline-flex items-center gap-2 mt-3 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[10px] uppercase tracking-[0.2em]">
+                      <Settings className="w-3.5 h-3.5" />
+                      {adminUser?.role || "admin"}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-2xl font-bold">{adminUser?.name || "Admin User"}</h2>
-                  <p className="text-stone-500">{adminUser?.email || "admin@company.com"}</p>
-                  <span className="inline-flex items-center gap-2 mt-2 text-[10px] uppercase tracking-widest text-stone-500">
-                    <Settings className="w-3.5 h-3.5" />
-                    {adminUser?.role || "admin"}
-                  </span>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3">
+                    <p className="text-[10px] uppercase tracking-[0.25em] text-stone-200">Sessions</p>
+                    <p className="text-2xl font-semibold">{adminSessions.length}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3">
+                    <p className="text-[10px] uppercase tracking-[0.25em] text-stone-200">Activity Logs</p>
+                    <p className="text-2xl font-semibold">{adminActivityLogs.length}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 hidden sm:block">
+                    <p className="text-[10px] uppercase tracking-[0.25em] text-stone-200">Status</p>
+                    <p className="text-sm font-semibold">Active</p>
+                  </div>
                 </div>
               </div>
-              <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="p-4 border border-stone-200 rounded-xl bg-stone-50 space-y-4">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">Account Settings</p>
-                  <div className="space-y-3">
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              <div className="xl:col-span-2 bg-white border border-stone-200 rounded-2xl shadow-sm">
+                <div className="px-6 py-5 border-b border-stone-100 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-stone-400">Account</p>
+                    <h3 className="text-lg font-semibold text-stone-900">Profile Details</h3>
+                  </div>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-stone-400">Primary</span>
+                </div>
+                <div className="p-6 space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Name</label>
                       <input
                         value={settingsForm.name}
                         onChange={(e) => setSettingsForm({ ...settingsForm, name: e.target.value })}
-                        className="mt-1 w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm"
+                        className="mt-1 w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 focus:border-stone-300"
                       />
                     </div>
                     <div>
@@ -830,11 +773,17 @@ export default function AdminDashboard() {
                         type="email"
                         value={settingsForm.email}
                         onChange={(e) => setSettingsForm({ ...settingsForm, email: e.target.value })}
-                        className="mt-1 w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm"
+                        className="mt-1 w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 focus:border-stone-300"
                       />
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-stone-700">Email notifications</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
+                      <div>
+                        <p className="text-sm font-semibold text-stone-800">Email notifications</p>
+                        <p className="text-xs text-stone-500">Product updates and admin alerts.</p>
+                      </div>
                       <input
                         type="checkbox"
                         checked={settingsForm.notifications.email}
@@ -842,8 +791,11 @@ export default function AdminDashboard() {
                         className="h-4 w-4"
                       />
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-stone-700">In-app notifications</span>
+                    <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
+                      <div>
+                        <p className="text-sm font-semibold text-stone-800">In-app notifications</p>
+                        <p className="text-xs text-stone-500">Real-time updates inside the app.</p>
+                      </div>
                       <input
                         type="checkbox"
                         checked={settingsForm.notifications.in_app}
@@ -851,76 +803,75 @@ export default function AdminDashboard() {
                         className="h-4 w-4"
                       />
                     </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    {settingsStatus ? (
+                      <p className="text-xs text-stone-500">{settingsStatus}</p>
+                    ) : (
+                      <p className="text-xs text-stone-400">Changes apply immediately for your account.</p>
+                    )}
                     <button
                       type="button"
                       onClick={handleSaveSettings}
-                      className="w-full bg-stone-900 text-stone-50 py-2 rounded-lg text-sm font-semibold hover:bg-stone-800"
+                      className="sm:w-auto w-full bg-stone-900 text-stone-50 px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-stone-800"
                     >
-                      Save Settings
+                      Save Changes
                     </button>
-                    {settingsStatus && (
-                      <p className="text-xs text-stone-500">{settingsStatus}</p>
-                    )}
                   </div>
                 </div>
-                <div className="p-4 border border-stone-200 rounded-xl bg-stone-50 space-y-4">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">Security</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-stone-700">Two-factor authentication</span>
-                    <input
-                      type="checkbox"
-                      checked={settingsForm.two_factor_enabled}
-                      onChange={(e) => setSettingsForm({ ...settingsForm, two_factor_enabled: e.target.checked })}
-                      className="h-4 w-4"
-                    />
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-white border border-stone-200 rounded-2xl shadow-sm">
+                  <div className="px-6 py-5 border-b border-stone-100">
+                    <p className="text-xs uppercase tracking-[0.3em] text-stone-400">Security</p>
+                    <h3 className="text-lg font-semibold text-stone-900">Protect Your Account</h3>
                   </div>
-                  <div className="border-t border-stone-200 pt-3 space-y-2">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">Change Password</p>
-                    <input
-                      type="password"
-                      placeholder="Current password"
-                      value={passwordForm.current_password}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, current_password: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm"
-                    />
-                    <input
-                      type="password"
-                      placeholder="New password"
-                      value={passwordForm.new_password}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, new_password: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm"
-                    />
-                    <input
-                      type="password"
-                      placeholder="Confirm new password"
-                      value={passwordForm.confirm_password}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, confirm_password: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleChangePassword}
-                      className="w-full bg-stone-900 text-stone-50 py-2 rounded-lg text-sm font-semibold hover:bg-stone-800"
-                    >
-                      Update Password
-                    </button>
-                    {passwordStatus && (
-                      <p className="text-xs text-stone-500">{passwordStatus}</p>
-                    )}
-                  </div>
-                  <div className="border-t border-stone-200 pt-3">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">Active Sessions</p>
-                    <div className="mt-2 space-y-2">
-                      {adminSessions.slice(0, 5).map((session) => (
-                        <div key={session.id} className="flex items-center justify-between text-xs text-stone-600">
-                          <span>{session.status === "active" ? "Active" : "Offline"}</span>
-                          <span>{session.last_activity_at ? new Date(session.last_activity_at).toLocaleString() : "—"}</span>
-                        </div>
-                      ))}
-                      {adminSessions.length === 0 && (
-                        <p className="text-xs text-stone-400">No sessions available.</p>
-                      )}
+                  <div className="p-6 space-y-4">
+                    <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
+                      <div>
+                        <p className="text-sm font-semibold text-stone-800">Two-factor authentication</p>
+                        <p className="text-xs text-stone-500">Add an extra layer of security.</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={settingsForm.two_factor_enabled}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, two_factor_enabled: e.target.checked })}
+                        className="h-4 w-4"
+                      />
                     </div>
+                    <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-4 space-y-3">
+                      <div>
+                        <p className="text-sm font-semibold text-stone-800">Change password</p>
+                        <p className="text-xs text-stone-500">We recommend updating it regularly.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => navigate("/profile/change-password")}
+                        className="w-full bg-stone-900 text-stone-50 py-2.5 rounded-lg text-sm font-semibold hover:bg-stone-800"
+                      >
+                        Go to Change Password
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-stone-200 rounded-2xl shadow-sm">
+                  <div className="px-6 py-5 border-b border-stone-100">
+                    <p className="text-xs uppercase tracking-[0.3em] text-stone-400">Sessions</p>
+                    <h3 className="text-lg font-semibold text-stone-900">Active Sessions</h3>
+                  </div>
+                  <div className="p-6 space-y-3">
+                    {adminSessions.slice(0, 5).map((session) => (
+                      <div key={session.id} className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-xs text-stone-600">
+                        <span className="font-semibold text-stone-700">{session.status === "active" ? "Active" : "Offline"}</span>
+                        <span>{session.last_activity_at ? new Date(session.last_activity_at).toLocaleString() : "—"}</span>
+                      </div>
+                    ))}
+                    {adminSessions.length === 0 && (
+                      <p className="text-xs text-stone-400">No sessions available.</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -939,7 +890,7 @@ export default function AdminDashboard() {
                       <th className="text-left px-6 py-3">Time</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-stone-100">
+                  <tbody className="p-4 space-y-4">
                     {adminActivityLogs.map((log) => (
                       <tr key={log.id} className="hover:bg-stone-50/60">
                         <td className="px-6 py-3 text-stone-700">{log.action}</td>
@@ -962,58 +913,6 @@ export default function AdminDashboard() {
           </div>
         )}
       </div>
-
-      {isSidebarOpen && (
-        <div className="fixed inset-0 z-[120] lg:hidden">
-          <div className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)} />
-          <div className="absolute left-0 top-0 h-full w-72 bg-white shadow-2xl border-r border-stone-200 p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="font-bold">Admin</h2>
-                <p className="text-xs text-stone-500">Control center</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsSidebarOpen(false)}
-                className="p-2 text-stone-500 hover:text-stone-900"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-stone-900 text-stone-50 flex items-center justify-center font-bold">
-                  {(adminUser?.name || "A").slice(0, 1).toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-stone-800 truncate">{adminUser?.name || "Admin User"}</p>
-                  <p className="text-xs text-stone-500 truncate">{adminUser?.email || "admin@company.com"}</p>
-                </div>
-              </div>
-              <div className="mt-3 flex items-center justify-between text-[10px] uppercase tracking-widest text-stone-400">
-                <span>Role</span>
-                <span className="text-stone-600 font-semibold">{adminUser?.role || "admin"}</span>
-              </div>
-            </div>
-            <nav className="space-y-1">
-              <NavButton icon={<LayoutDashboard className="w-4 h-4" />} label="Overview" active={activeSection === "overview"} onClick={() => { setActiveSection("overview"); setIsSidebarOpen(false); }} />
-              <NavButton icon={<ListChecks className="w-4 h-4" />} label="Tasks" active={activeSection === "tasks"} onClick={() => { setActiveSection("tasks"); setIsSidebarOpen(false); }} />
-              <NavButton icon={<Users2 className="w-4 h-4" />} label="User Sessions" active={activeSection === "sessions"} onClick={() => { setActiveSection("sessions"); setIsSidebarOpen(false); }} />
-              <NavButton icon={<ActivityIcon className="w-4 h-4" />} label="Activity Logs" active={activeSection === "logs"} onClick={() => { setActiveSection("logs"); setIsSidebarOpen(false); }} />
-              <NavButton icon={<UserCircle className="w-4 h-4" />} label="Profile & Settings" active={activeSection === "profile"} onClick={() => { setActiveSection("profile"); setIsSidebarOpen(false); }} />
-            </nav>
-            <button 
-              onClick={() => { setIsAddingTask(true); setIsSidebarOpen(false); }}
-              className="mt-4 w-full bg-stone-900 text-stone-50 px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-stone-800 transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              Create Task
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-
       {isAddingTask && (
         <Modal title="Create New Task" onClose={() => setIsAddingTask(false)}>
           <form onSubmit={handleCreateTask} className="space-y-4">
@@ -1252,7 +1151,7 @@ export default function AdminDashboard() {
                     className="border border-stone-100 bg-stone-50 rounded-lg px-3 py-2"
                   >
                     <div className="flex items-center justify-between text-[10px] text-stone-400 uppercase tracking-widest">
-                      <span>{comment.user_name} · {comment.user_role}</span>
+                      <span>{comment.user_name} � {comment.user_role}</span>
                       <span>{new Date(comment.created_at).toLocaleString()}</span>
                     </div>
                     <p className="text-xs text-stone-700 mt-1 whitespace-pre-wrap">{comment.content}</p>
@@ -1375,22 +1274,6 @@ function StatusPill({ status }: { status: "active" | "offline" }) {
   );
 }
 
-function NavButton({ icon, label, active, onClick, compact = false }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void; compact?: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-full text-left px-3 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 ${
-        active
-          ? "bg-stone-900 text-stone-50"
-          : "text-stone-600 hover:bg-stone-100"
-      }`}
-    >
-      {icon}
-      {!compact && label}
-    </button>
-  );
-}
 
 function Modal({ title, children, onClose }: { title: string, children: React.ReactNode, onClose: () => void }) {
   return (
@@ -1398,7 +1281,7 @@ function Modal({ title, children, onClose }: { title: string, children: React.Re
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+        className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden max-h-[85vh]"
       >
         <div className="px-6 py-4 border-b border-stone-100 flex justify-between items-center bg-stone-50/50">
           <h3 className="font-bold">{title}</h3>
@@ -1406,10 +1289,25 @@ function Modal({ title, children, onClose }: { title: string, children: React.Re
             <Plus className="w-5 h-5 rotate-45" />
           </button>
         </div>
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto max-h-[calc(85vh-4rem)]">
           {children}
         </div>
       </motion.div>
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

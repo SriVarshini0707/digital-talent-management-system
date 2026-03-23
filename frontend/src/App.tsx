@@ -5,6 +5,8 @@ import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import AdminDashboard from './components/Dashboard/AdminDashboard';
 import UserDashboard from './components/Dashboard/UserDashboard';
+import ChangePassword from './components/Profile/ChangePassword';
+import UserSettings from './components/Profile/UserSettings';
 import { LogOut, LayoutDashboard, CheckSquare, User as UserIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -62,6 +64,9 @@ export default function App() {
                       {user.role === UserRole.ADMIN && (
                         <span className="bg-stone-900 text-stone-50 px-2 py-0.5 rounded text-[10px] uppercase tracking-widest">Admin</span>
                       )}
+                      {user.role !== UserRole.ADMIN && (
+                        <Link to="/profile" className="hover:text-stone-900 transition-colors">Profile</Link>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
@@ -86,6 +91,20 @@ export default function App() {
               <Routes>
                 <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
                 <Route path="/register" element={!user ? <Register /> : <Navigate to="/" />} />
+                <Route 
+                  path="/profile"
+                  element={
+                    user ? (
+                      user.role === UserRole.ADMIN ? <Navigate to="/" /> : <UserSettings />
+                    ) : (
+                      <Navigate to="/login" />
+                    )
+                  }
+                />
+                <Route 
+                  path="/profile/change-password"
+                  element={user ? <ChangePassword /> : <Navigate to="/login" />}
+                />
                 <Route 
                   path="/" 
                   element={
