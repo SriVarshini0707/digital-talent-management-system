@@ -239,12 +239,20 @@ async function startServer() {
   };
 
   // --- Auth Middleware ---
-  const authenticate = (req: any, res: any, next: any) => {
+  const authenticate = async (req: any, res: any, next: any) => {
     const token = req.cookies.token;
     if (!token) return res.status(401).json({ error: "Unauthorized" });
     try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      req.user = decoded;
+      const decoded: any = jwt.verify(token, JWT_SECRET);
+      const user = await User.findById(decoded.id).select("name email role");
+      if (!user) return res.status(401).json({ error: "Unauthorized" });
+      req.user = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        session_id: decoded.session_id
+      };
       if (decoded?.session_id) {
         const now = new Date();
         UserSession.findByIdAndUpdate(decoded.session_id, {
