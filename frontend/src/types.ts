@@ -7,12 +7,25 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  email_verified?: boolean;
+  phone?: string;
+  profile_photo_url?: string;
+  bio?: string;
+  theme?: "light" | "dark";
   role: UserRole;
   notifications?: {
     email: boolean;
     in_app: boolean;
+    system_alerts?: boolean;
+    user_activity_alerts?: boolean;
   };
   two_factor_enabled?: boolean;
+  is_active?: boolean;
+  privacy?: {
+    profile_visible?: boolean;
+    show_email?: boolean;
+    show_phone?: boolean;
+  };
 }
 
 export enum TaskStatus {
@@ -48,6 +61,7 @@ export interface Task {
   categories?: string[];
   revision_history?: TaskRevision[];
   created_at: string;
+  completed_at?: string;
 }
 
 export interface Attachment {
@@ -114,9 +128,21 @@ export interface ActivityLog {
 export interface UserSettingsUpdate {
   name: string;
   email: string;
+  phone?: string;
+  profile_photo_url?: string;
+  bio?: string;
+  theme?: "light" | "dark";
   notifications: {
     email: boolean;
     in_app: boolean;
+    system_alerts?: boolean;
+    user_activity_alerts?: boolean;
   };
   two_factor_enabled: boolean;
+  privacy?: {
+    profile_visible?: boolean;
+    show_email?: boolean;
+    show_phone?: boolean;
+  };
+  current_password?: string;
 }

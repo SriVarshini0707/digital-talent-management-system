@@ -7,7 +7,7 @@ import AdminDashboard from './components/Dashboard/AdminDashboard';
 import UserDashboard from './components/Dashboard/UserDashboard';
 import ChangePassword from './components/Profile/ChangePassword';
 import UserSettings from './components/Profile/UserSettings';
-import { LogOut, LayoutDashboard, CheckSquare, User as UserIcon } from 'lucide-react';
+import { LogOut, LayoutDashboard, User as UserIcon, MoonStar, SunMedium } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface AuthContextType {
@@ -26,57 +26,129 @@ export const useAuth = () => {
 };
 
 export default function App() {
+  const getStoredTheme = (): "light" | "dark" | null => {
+    const storedTheme = localStorage.getItem("dtms-theme");
+    return storedTheme === "light" || storedTheme === "dark" ? storedTheme : null;
+  };
+
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [theme, setTheme] = useState<"light" | "dark">(
+    () => getStoredTheme() || "light"
+  );
+
+  const applyTheme = (nextTheme: "light" | "dark") => {
+    setTheme(nextTheme);
+    localStorage.setItem("dtms-theme", nextTheme);
+    document.documentElement.style.colorScheme = nextTheme;
+    document.documentElement.dataset.theme = nextTheme;
+    window.dispatchEvent(new CustomEvent("dtms-theme-change", { detail: nextTheme }));
+  };
+
+  const persistTheme = async (nextTheme: "light" | "dark") => {
+    if (!user) return;
+    try {
+      await fetch('/api/settings/me', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ theme: nextTheme })
+      });
+    } catch {
+      // Keep the local preference even if syncing fails.
+    }
+  };
 
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
-        if (data.user) setUser(data.user);
+        if (data.user) {
+          setUser(data.user);
+          const nextTheme = getStoredTheme() || (data.user.theme === "dark" ? "dark" : "light");
+          applyTheme(nextTheme);
+        }
       })
       .finally(() => setLoading(false));
   }, []);
 
-  const login = (userData: User) => setUser(userData);
+  useEffect(() => {
+    const handleThemeChange = (event: Event) => {
+      const nextTheme = (event as CustomEvent<"light" | "dark">).detail;
+      if (nextTheme === "light" || nextTheme === "dark") {
+        setTheme(nextTheme);
+        localStorage.setItem("dtms-theme", nextTheme);
+        document.documentElement.style.colorScheme = nextTheme;
+        document.documentElement.dataset.theme = nextTheme;
+      }
+    };
+    window.addEventListener("dtms-theme-change", handleThemeChange as EventListener);
+    return () => window.removeEventListener("dtms-theme-change", handleThemeChange as EventListener);
+  }, []);
+
+  const login = (userData: User) => {
+    setUser(userData);
+    const nextTheme = getStoredTheme() || (userData.theme === "dark" ? "dark" : "light");
+    applyTheme(nextTheme);
+  };
   const logout = async () => {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     setUser(null);
   };
 
-  if (loading) return <div className="flex items-center justify-center h-screen bg-stone-50 text-stone-900 font-mono">Loading...</div>;
+  const handleThemeToggle = async () => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    applyTheme(nextTheme);
+    setUser((current) => (current ? { ...current, theme: nextTheme } : current));
+    await persistTheme(nextTheme);
+  };
+
+  if (loading) return <div className={`flex items-center justify-center h-screen font-mono ${theme === "dark" ? "bg-slate-950 text-slate-100" : "bg-orange-50 text-slate-900"}`}>Loading...</div>;
 
   return (
     <AuthContext.Provider value={{ user, loading, login, logout }}>
       <Router>
-        <div className="min-h-screen bg-stone-50 text-stone-900 selection:bg-stone-900 selection:text-stone-50">
+        <div className={`min-h-screen selection:bg-pink-600 selection:text-white ${theme === "dark" ? "bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.12),_transparent_30%),linear-gradient(180deg,#020617_0%,#081225_42%,#0f172a_100%)] text-slate-100" : "bg-[linear-gradient(180deg,#fff7ed_0%,#fffaf5_42%,#f8fbff_100%)] text-slate-900"}`}>
           {user && (
-            <nav className="border-b border-stone-200 bg-white/80 backdrop-blur-md sticky top-0 z-50">
+            <nav className={`backdrop-blur-xl sticky top-0 z-50 border-b ${theme === "dark" ? "border-sky-500/20 bg-slate-950/70" : "border-pink-200/60 bg-white/70"}`}>
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between h-16 items-center">
                   <div className="flex items-center gap-8">
                     <Link to="/" className="text-xl font-bold tracking-tighter flex items-center gap-2">
-                      <LayoutDashboard className="w-6 h-6" />
+                      <LayoutDashboard className={`w-6 h-6 ${theme === "dark" ? "text-cyan-300" : "text-pink-500"}`} />
                       DTMS
                     </Link>
-                    <div className="hidden md:flex items-center gap-4 text-sm font-medium text-stone-500">
-                      <Link to="/" className="hover:text-stone-900 transition-colors">Dashboard</Link>
+                    <div className={`hidden md:flex items-center gap-4 text-sm font-medium ${theme === "dark" ? "text-slate-300" : "text-slate-500"}`}>
+                      <Link to="/" className={`${theme === "dark" ? "hover:text-cyan-300" : "hover:text-pink-600"} transition-colors`}>Dashboard</Link>
                       {user.role === UserRole.ADMIN && (
-                        <span className="bg-stone-900 text-stone-50 px-2 py-0.5 rounded text-[10px] uppercase tracking-widest">Admin</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-widest ${theme === "dark" ? "bg-cyan-400/15 text-cyan-200 border border-cyan-400/20" : "bg-pink-50 text-pink-700 border border-pink-200"}`}>Admin</span>
                       )}
                       {user.role !== UserRole.ADMIN && (
-                        <Link to="/profile" className="hover:text-stone-900 transition-colors">Profile</Link>
+                        <Link to="/profile" className={`${theme === "dark" ? "hover:text-cyan-300" : "hover:text-pink-600"} transition-colors`}>Profile</Link>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-stone-100 border border-stone-200">
-                      <UserIcon className="w-4 h-4 text-stone-500" />
+                    <button
+                      type="button"
+                      onClick={handleThemeToggle}
+                      className={`flex h-10 w-10 items-center justify-center rounded-full border transition-all ${theme === "dark" ? "border-cyan-400/25 bg-slate-900/90 text-cyan-300 hover:-translate-y-0.5 hover:border-cyan-300/60 hover:text-white" : "border-sky-200 bg-white/90 text-sky-600 shadow-sm shadow-sky-100/70 hover:-translate-y-0.5 hover:border-sky-400 hover:text-sky-700"}`}
+                      aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                      title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                    >
+                      {theme === "dark" ? <SunMedium className="h-4 w-4" /> : <MoonStar className="h-4 w-4" />}
+                    </button>
+                    <Link
+                      to={user.role === UserRole.ADMIN ? "/?section=profile" : "/profile"}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-colors ${theme === "dark" ? "bg-slate-900/90 border-cyan-400/20 hover:border-cyan-300/50 hover:text-white" : "bg-white/90 border-pink-200 hover:border-pink-400 hover:text-slate-900 shadow-sm shadow-pink-100/70"}`}
+                      aria-label="Open profile"
+                    >
+                      <UserIcon className={`w-4 h-4 ${theme === "dark" ? "text-cyan-300" : "text-pink-500"}`} />
                       <span className="text-xs font-medium">{user.name}</span>
-                    </div>
+                    </Link>
                     <button 
                       onClick={logout}
-                      className="p-2 text-stone-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-all"
+                      className={`p-2 rounded-full transition-all ${theme === "dark" ? "text-slate-300 hover:text-rose-300 hover:bg-rose-400/10" : "text-slate-500 hover:text-rose-600 hover:bg-rose-50"}`}
                     >
                       <LogOut className="w-5 h-5" />
                     </button>

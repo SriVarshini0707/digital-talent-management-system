@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { Plus, CheckCircle, Clock, Send, BarChart3, Trash2, Edit2, Users, FileText, Eye, XCircle, ExternalLink, LayoutDashboard, ListChecks, Activity as ActivityIcon, Users2, Settings, UserCircle } from "lucide-react";
+﻿import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Plus, CheckCircle, Clock, Send, BarChart3, Trash2, Edit2, Users, FileText, Eye, XCircle, ExternalLink, LayoutDashboard, ListChecks, Activity as ActivityIcon, Users2, Settings, UserCircle, ShieldCheck, LogOut, Power, Upload } from "lucide-react";
 import { motion } from "motion/react";
 import { Task, Analytics, User, TaskStatus, Submission, TaskPriority, TaskComment, UserSession, ActivityLog, UserSettingsUpdate } from "../../types";
 
@@ -12,10 +12,14 @@ export default function AdminDashboard() {
   const [settingsForm, setSettingsForm] = useState<UserSettingsUpdate>({
     name: "",
     email: "",
-    notifications: { email: true, in_app: true },
+    phone: "",
+    profile_photo_url: "",
+    notifications: { email: true, in_app: true, system_alerts: true, user_activity_alerts: true },
     two_factor_enabled: false
   });
   const [settingsStatus, setSettingsStatus] = useState<string | null>(null);
+  const [accountActionStatus, setAccountActionStatus] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [sessions, setSessions] = useState<UserSession[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [activeSection, setActiveSection] = useState<"overview" | "tasks" | "sessions" | "logs" | "profile">("overview");
@@ -37,6 +41,7 @@ export default function AdminDashboard() {
   const [replyTo, setReplyTo] = useState<TaskComment | null>(null);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const toDateInputValue = (value?: string | null) => {
     if (!value) return "";
@@ -109,9 +114,13 @@ export default function AdminDashboard() {
         setSettingsForm({
           name: data.user.name || "",
           email: data.user.email || "",
+          phone: data.user.phone || "",
+          profile_photo_url: data.user.profile_photo_url || "",
           notifications: {
             email: data.user.notifications?.email ?? true,
-            in_app: data.user.notifications?.in_app ?? true
+            in_app: data.user.notifications?.in_app ?? true,
+            system_alerts: data.user.notifications?.system_alerts ?? true,
+            user_activity_alerts: data.user.notifications?.user_activity_alerts ?? true
           },
           two_factor_enabled: data.user.two_factor_enabled ?? false
         });
@@ -129,7 +138,20 @@ export default function AdminDashboard() {
     if (!editingTask) return;
     setEditingCategories(formatCategories(editingTask.categories));
   }, [editingTask?.id]);
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const section = params.get("section");
+    if (section === "overview" || section === "tasks" || section === "sessions" || section === "logs" || section === "profile") {
+      setActiveSection(section);
+    }
+  }, [location.search]);
 
+  const updateSection = (section: typeof activeSection) => {
+    setActiveSection(section);
+    const params = new URLSearchParams(location.search);
+    params.set("section", section);
+    navigate({ search: params.toString() }, { replace: true });
+  };
   const fetchData = async () => {
     const [tasksRes, usersRes, analyticsRes, sessionsRes, logsRes] = await Promise.all([
       fetch("/api/tasks", { credentials: "include" }),
@@ -331,6 +353,7 @@ export default function AdminDashboard() {
 
   const handleSaveSettings = async () => {
     setSettingsStatus(null);
+    setAccountActionStatus(null);
     const res = await fetch("/api/settings/me", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -342,31 +365,106 @@ export default function AdminDashboard() {
       setSettingsStatus("Settings saved.");
       if (data?.user) {
         setAdminUser(data.user);
+        setSettingsForm({
+          name: data.user.name || "",
+          email: data.user.email || "",
+          phone: data.user.phone || "",
+          profile_photo_url: data.user.profile_photo_url || "",
+          notifications: {
+            email: data.user.notifications?.email ?? true,
+            in_app: data.user.notifications?.in_app ?? true,
+            system_alerts: data.user.notifications?.system_alerts ?? true,
+            user_activity_alerts: data.user.notifications?.user_activity_alerts ?? true
+          },
+          two_factor_enabled: data.user.two_factor_enabled ?? false
+        });
       }
     } else {
       setSettingsStatus(data?.error || "Failed to save settings.");
     }
   };
 
+  const handleProfilePhotoUpload = async (file: File) => {
+    setIsUploadingPhoto(true);
+    setSettingsStatus(null);
+    setAccountActionStatus(null);
+    try {
+      const formData = new FormData();
+      formData.append("files", file);
+      const uploadRes = await fetch("/api/uploads", {
+        method: "POST",
+        credentials: "include",
+        body: formData
+      });
+      const uploadData = await uploadRes.json();
+      const fileUrl = uploadData?.files?.[0]?.file_url;
+      if (!uploadRes.ok || !fileUrl) {
+        setSettingsStatus(uploadData?.error || "Profile photo upload failed.");
+        return;
+      }
+
+      setSettingsForm((current) => ({
+        ...current,
+        profile_photo_url: fileUrl
+      }));
+      setSettingsStatus("Profile photo uploaded. Save changes to apply it.");
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  const handleAdminLogout = async () => {
+    setAccountActionStatus(null);
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    navigate("/login");
+    window.location.reload();
+  };
+
+  const handleDeactivateAccount = async () => {
+    setSettingsStatus(null);
+    if (!window.confirm("Deactivate your admin account? You will be signed out immediately and will need another admin to restore access.")) {
+      return;
+    }
+
+    const res = await fetch("/api/settings/deactivate", {
+      method: "POST",
+      credentials: "include"
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      setAccountActionStatus(data?.error || "Unable to deactivate your account.");
+      return;
+    }
+
+    setAccountActionStatus("Account deactivated. Redirecting to login.");
+    navigate("/login");
+    window.location.reload();
+  };
+
   return (
     <>
     <div className="space-y-8">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-          <p className="text-stone-500 mt-1">Manage talent tasks and track performance</p>
+      <div className="relative overflow-hidden rounded-[2rem] border border-pink-200/60 bg-[linear-gradient(135deg,#111827_0%,#7c3aed_42%,#ec4899_100%)] px-6 py-7 text-white shadow-[0_24px_80px_rgba(236,72,153,0.18)]">
+        <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_top_left,_white,_transparent_38%)]" />
+        <div className="relative flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-pink-100/80">Control Center</p>
+            <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+            <p className="mt-1 text-sm text-white/80">Manage talent tasks, reviews, sessions, and operational visibility.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsAddingTask(true)}
+            className="rounded-xl bg-white/15 px-4 py-2.5 font-medium flex items-center gap-2 backdrop-blur-sm hover:bg-white/20 transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            Create Task
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => setIsAddingTask(true)}
-          className="bg-stone-900 text-stone-50 px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-stone-800 transition-all"
-        >
-          <Plus className="w-4 h-4" />
-          Create Task
-        </button>
       </div>
 
-      <div className="bg-white border border-stone-200 rounded-2xl shadow-sm p-3 sm:p-4 flex flex-wrap gap-2">
+      <div className="rounded-[1.5rem] border border-pink-200/60 bg-white/85 p-3 shadow-[0_18px_50px_rgba(236,72,153,0.08)] backdrop-blur-xl sm:p-4 flex flex-wrap gap-2">
         {[
           { id: "overview", label: "Overview", icon: <LayoutDashboard className="w-4 h-4" /> },
           { id: "tasks", label: "Tasks", icon: <ListChecks className="w-4 h-4" /> },
@@ -377,11 +475,11 @@ export default function AdminDashboard() {
           <button
             key={item.id}
             type="button"
-            onClick={() => setActiveSection(item.id as typeof activeSection)}
+            onClick={() => updateSection(item.id as typeof activeSection)}
             className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-widest border ${
               activeSection === item.id
-                ? "bg-stone-900 text-stone-50 border-stone-900"
-                : "bg-white text-stone-600 border-stone-200 hover:border-stone-300"
+                ? "bg-[linear-gradient(135deg,#ec4899,#8b5cf6)] text-white border-transparent shadow-sm"
+                : "bg-white text-slate-600 border-slate-200 hover:border-pink-300 hover:text-slate-900"
             }`}
           >
             {item.icon}
@@ -393,11 +491,11 @@ export default function AdminDashboard() {
         {activeSection === "overview" && (
           <>
             <div className="flex flex-wrap items-center gap-3">
-              <div className="text-xs font-semibold uppercase tracking-wider text-stone-500">Department Filter</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-pink-500">Department Filter</div>
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900"
+                className="px-3 py-2 bg-white border border-pink-100 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-pink-100 focus:border-pink-300"
               >
                 <option value="all">All Categories</option>
                 {categoryOptions.map((category) => (
@@ -436,14 +534,14 @@ export default function AdminDashboard() {
             )}
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-sm">
+              <div className="rounded-[1.5rem] border border-sky-200/60 overflow-hidden bg-white/90 shadow-[0_18px_50px_rgba(14,165,233,0.08)]">
                 <div className="px-6 py-4 border-b border-stone-100 flex justify-between items-center">
                   <h2 className="font-bold">Recent Sessions</h2>
-                  <span className="text-xs font-medium text-stone-400 uppercase tracking-wider">{sessions.length} Sessions</span>
+                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">{sessions.length} Sessions</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-stone-50 text-xs uppercase tracking-wider text-stone-500">
+                    <thead className="bg-sky-50/80 text-xs uppercase tracking-wider text-slate-500">
                       <tr>
                         <th className="text-left px-6 py-3">User</th>
                         <th className="text-left px-6 py-3">Status</th>
@@ -452,7 +550,7 @@ export default function AdminDashboard() {
                     </thead>
                     <tbody className="p-4 space-y-4">
                       {sessions.slice(0, 6).map((session) => (
-                        <tr key={session.id} className="hover:bg-stone-50/60">
+                        <tr key={session.id} className="hover:bg-sky-50/50">
                           <td className="px-6 py-3">
                             <div className="font-semibold text-stone-700">{session.user_name}</div>
                             <div className="text-xs text-stone-400">{session.user_email}</div>
@@ -461,7 +559,7 @@ export default function AdminDashboard() {
                             <StatusPill status={session.status} />
                           </td>
                           <td className="px-6 py-3 text-stone-600">
-                            {session.login_at ? new Date(session.login_at).toLocaleString() : "—"}
+                            {session.login_at ? new Date(session.login_at).toLocaleString() : "-"}
                           </td>
                         </tr>
                       ))}
@@ -477,14 +575,14 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-sm">
+              <div className="rounded-[1.5rem] border border-pink-200/60 overflow-hidden bg-white/90 shadow-[0_18px_50px_rgba(236,72,153,0.08)]">
                 <div className="px-6 py-4 border-b border-stone-100 flex justify-between items-center">
                   <h2 className="font-bold">Recent Activity</h2>
-                  <span className="text-xs font-medium text-stone-400 uppercase tracking-wider">{activityLogs.length} Logs</span>
+                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">{activityLogs.length} Logs</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-stone-50 text-xs uppercase tracking-wider text-stone-500">
+                    <thead className="bg-pink-50/80 text-xs uppercase tracking-wider text-slate-500">
                       <tr>
                         <th className="text-left px-6 py-3">User</th>
                         <th className="text-left px-6 py-3">Action</th>
@@ -493,14 +591,14 @@ export default function AdminDashboard() {
                     </thead>
                     <tbody className="p-4 space-y-4">
                       {activityLogs.slice(0, 6).map((log) => (
-                        <tr key={log.id} className="hover:bg-stone-50/60">
+                        <tr key={log.id} className="hover:bg-pink-50/50">
                           <td className="px-6 py-3">
                             <div className="font-semibold text-stone-700">{log.user_name}</div>
                             <div className="text-xs text-stone-400">{log.user_email}</div>
                           </td>
                           <td className="px-6 py-3 text-stone-700">{log.action}</td>
                           <td className="px-6 py-3 text-stone-600">
-                            {log.created_at ? new Date(log.created_at).toLocaleString() : "—"}
+                            {log.created_at ? new Date(log.created_at).toLocaleString() : "-"}
                           </td>
                         </tr>
                       ))}
@@ -547,13 +645,13 @@ export default function AdminDashboard() {
                         <StatusPill status={session.status} />
                       </td>
                       <td className="px-6 py-3 text-stone-600">
-                        {session.login_at ? new Date(session.login_at).toLocaleString() : "—"}
+                        {session.login_at ? new Date(session.login_at).toLocaleString() : "-"}
                       </td>
                       <td className="px-6 py-3 text-stone-600">
-                        {session.last_activity_at ? new Date(session.last_activity_at).toLocaleString() : "—"}
+                        {session.last_activity_at ? new Date(session.last_activity_at).toLocaleString() : "-"}
                       </td>
                       <td className="px-6 py-3 text-stone-600">
-                        {session.logout_at ? new Date(session.logout_at).toLocaleString() : "—"}
+                        {session.logout_at ? new Date(session.logout_at).toLocaleString() : "-"}
                       </td>
                     </tr>
                   ))}
@@ -594,7 +692,7 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-6 py-3 text-stone-700">{log.action}</td>
                       <td className="px-6 py-3 text-stone-600">
-                        {log.created_at ? new Date(log.created_at).toLocaleString() : "—"}
+                        {log.created_at ? new Date(log.created_at).toLocaleString() : "-"}
                       </td>
                     </tr>
                   ))}
@@ -712,205 +810,21 @@ export default function AdminDashboard() {
         )}
 
         {activeSection === "profile" && (
-          <div className="space-y-8">
-            <div className="relative overflow-hidden rounded-3xl border border-stone-200 shadow-sm">
-              <div className="absolute inset-0 bg-gradient-to-r from-stone-900 via-stone-800 to-stone-700" />
-              <div className="absolute inset-0 opacity-50 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.2),_transparent_55%)]" />
-              <div className="relative px-6 py-8 sm:px-8 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between text-stone-50">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 text-stone-50 flex items-center justify-center text-2xl font-bold">
-                    {(adminUser?.name || "A").slice(0, 1).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.35em] text-stone-200">Profile</p>
-                    <h2 className="text-2xl font-semibold">{adminUser?.name || "Admin User"}</h2>
-                    <p className="text-sm text-stone-200">{adminUser?.email || "admin@company.com"}</p>
-                    <span className="inline-flex items-center gap-2 mt-3 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[10px] uppercase tracking-[0.2em]">
-                      <Settings className="w-3.5 h-3.5" />
-                      {adminUser?.role || "admin"}
-                    </span>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                  <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3">
-                    <p className="text-[10px] uppercase tracking-[0.25em] text-stone-200">Sessions</p>
-                    <p className="text-2xl font-semibold">{adminSessions.length}</p>
-                  </div>
-                  <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3">
-                    <p className="text-[10px] uppercase tracking-[0.25em] text-stone-200">Activity Logs</p>
-                    <p className="text-2xl font-semibold">{adminActivityLogs.length}</p>
-                  </div>
-                  <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 hidden sm:block">
-                    <p className="text-[10px] uppercase tracking-[0.25em] text-stone-200">Status</p>
-                    <p className="text-sm font-semibold">Active</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-              <div className="xl:col-span-2 bg-white border border-stone-200 rounded-2xl shadow-sm">
-                <div className="px-6 py-5 border-b border-stone-100 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.3em] text-stone-400">Account</p>
-                    <h3 className="text-lg font-semibold text-stone-900">Profile Details</h3>
-                  </div>
-                  <span className="text-xs font-semibold uppercase tracking-wider text-stone-400">Primary</span>
-                </div>
-                <div className="p-6 space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Name</label>
-                      <input
-                        value={settingsForm.name}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, name: e.target.value })}
-                        className="mt-1 w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 focus:border-stone-300"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Email</label>
-                      <input
-                        type="email"
-                        value={settingsForm.email}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, email: e.target.value })}
-                        className="mt-1 w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 focus:border-stone-300"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
-                      <div>
-                        <p className="text-sm font-semibold text-stone-800">Email notifications</p>
-                        <p className="text-xs text-stone-500">Product updates and admin alerts.</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={settingsForm.notifications.email}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, notifications: { ...settingsForm.notifications, email: e.target.checked } })}
-                        className="h-4 w-4"
-                      />
-                    </div>
-                    <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
-                      <div>
-                        <p className="text-sm font-semibold text-stone-800">In-app notifications</p>
-                        <p className="text-xs text-stone-500">Real-time updates inside the app.</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={settingsForm.notifications.in_app}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, notifications: { ...settingsForm.notifications, in_app: e.target.checked } })}
-                        className="h-4 w-4"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    {settingsStatus ? (
-                      <p className="text-xs text-stone-500">{settingsStatus}</p>
-                    ) : (
-                      <p className="text-xs text-stone-400">Changes apply immediately for your account.</p>
-                    )}
-                    <button
-                      type="button"
-                      onClick={handleSaveSettings}
-                      className="sm:w-auto w-full bg-stone-900 text-stone-50 px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-stone-800"
-                    >
-                      Save Changes
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                <div className="bg-white border border-stone-200 rounded-2xl shadow-sm">
-                  <div className="px-6 py-5 border-b border-stone-100">
-                    <p className="text-xs uppercase tracking-[0.3em] text-stone-400">Security</p>
-                    <h3 className="text-lg font-semibold text-stone-900">Protect Your Account</h3>
-                  </div>
-                  <div className="p-6 space-y-4">
-                    <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
-                      <div>
-                        <p className="text-sm font-semibold text-stone-800">Two-factor authentication</p>
-                        <p className="text-xs text-stone-500">Add an extra layer of security.</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={settingsForm.two_factor_enabled}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, two_factor_enabled: e.target.checked })}
-                        className="h-4 w-4"
-                      />
-                    </div>
-                    <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-4 space-y-3">
-                      <div>
-                        <p className="text-sm font-semibold text-stone-800">Change password</p>
-                        <p className="text-xs text-stone-500">We recommend updating it regularly.</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => navigate("/profile/change-password")}
-                        className="w-full bg-stone-900 text-stone-50 py-2.5 rounded-lg text-sm font-semibold hover:bg-stone-800"
-                      >
-                        Go to Change Password
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white border border-stone-200 rounded-2xl shadow-sm">
-                  <div className="px-6 py-5 border-b border-stone-100">
-                    <p className="text-xs uppercase tracking-[0.3em] text-stone-400">Sessions</p>
-                    <h3 className="text-lg font-semibold text-stone-900">Active Sessions</h3>
-                  </div>
-                  <div className="p-6 space-y-3">
-                    {adminSessions.slice(0, 5).map((session) => (
-                      <div key={session.id} className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-xs text-stone-600">
-                        <span className="font-semibold text-stone-700">{session.status === "active" ? "Active" : "Offline"}</span>
-                        <span>{session.last_activity_at ? new Date(session.last_activity_at).toLocaleString() : "—"}</span>
-                      </div>
-                    ))}
-                    {adminSessions.length === 0 && (
-                      <p className="text-xs text-stone-400">No sessions available.</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-sm">
-              <div className="px-6 py-4 border-b border-stone-100 flex justify-between items-center">
-                <h3 className="font-bold">Your Recent Activity</h3>
-                <span className="text-xs font-medium text-stone-400 uppercase tracking-wider">{adminActivityLogs.length} Logs</span>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-stone-50 text-xs uppercase tracking-wider text-stone-500">
-                    <tr>
-                      <th className="text-left px-6 py-3">Action</th>
-                      <th className="text-left px-6 py-3">Time</th>
-                    </tr>
-                  </thead>
-                  <tbody className="p-4 space-y-4">
-                    {adminActivityLogs.map((log) => (
-                      <tr key={log.id} className="hover:bg-stone-50/60">
-                        <td className="px-6 py-3 text-stone-700">{log.action}</td>
-                        <td className="px-6 py-3 text-stone-600">
-                          {log.created_at ? new Date(log.created_at).toLocaleString() : "—"}
-                        </td>
-                      </tr>
-                    ))}
-                    {adminActivityLogs.length === 0 && (
-                      <tr>
-                        <td colSpan={2} className="px-6 py-10 text-center text-stone-400 italic">
-                          No activity logs yet.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+          <AdminProfileSection
+            adminUser={adminUser}
+            settingsForm={settingsForm}
+            setSettingsForm={setSettingsForm}
+            settingsStatus={settingsStatus}
+            accountActionStatus={accountActionStatus}
+            isUploadingPhoto={isUploadingPhoto}
+            adminSessions={adminSessions}
+            adminActivityLogs={adminActivityLogs}
+            onSaveSettings={handleSaveSettings}
+            onUploadPhoto={handleProfilePhotoUpload}
+            onChangePassword={() => navigate("/profile/change-password")}
+            onLogout={handleAdminLogout}
+            onDeactivate={handleDeactivateAccount}
+          />
         )}
       </div>
       {isAddingTask && (
@@ -1151,7 +1065,7 @@ export default function AdminDashboard() {
                     className="border border-stone-100 bg-stone-50 rounded-lg px-3 py-2"
                   >
                     <div className="flex items-center justify-between text-[10px] text-stone-400 uppercase tracking-widest">
-                      <span>{comment.user_name} � {comment.user_role}</span>
+                      <span>{comment.user_name} · {comment.user_role}</span>
                       <span>{new Date(comment.created_at).toLocaleString()}</span>
                     </div>
                     <p className="text-xs text-stone-700 mt-1 whitespace-pre-wrap">{comment.content}</p>
@@ -1228,17 +1142,409 @@ export default function AdminDashboard() {
   );
 }
 
+function AdminProfileSection({
+  adminUser,
+  settingsForm,
+  setSettingsForm,
+  settingsStatus,
+  accountActionStatus,
+  isUploadingPhoto,
+  adminSessions,
+  adminActivityLogs,
+  onSaveSettings,
+  onUploadPhoto,
+  onChangePassword,
+  onLogout,
+  onDeactivate
+}: {
+  adminUser: User | null;
+  settingsForm: UserSettingsUpdate;
+  setSettingsForm: React.Dispatch<React.SetStateAction<UserSettingsUpdate>>;
+  settingsStatus: string | null;
+  accountActionStatus: string | null;
+  isUploadingPhoto: boolean;
+  adminSessions: UserSession[];
+  adminActivityLogs: ActivityLog[];
+  onSaveSettings: () => void;
+  onUploadPhoto: (file: File) => Promise<void>;
+  onChangePassword: () => void;
+  onLogout: () => void;
+  onDeactivate: () => void;
+}) {
+  const permissions = [
+    "Manage tasks and reviews",
+    "Access session and activity logs",
+    "Assign work across teams",
+    "Maintain personal security controls"
+  ];
+
+  const securityLabel = settingsForm.two_factor_enabled ? "Hardened" : "2FA required";
+  const cardShellClass = "rounded-[1.5rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,252,0.92)_100%)] shadow-[0_22px_65px_rgba(15,23,42,0.12)] backdrop-blur-xl";
+  const panelClass = "rounded-2xl border border-slate-200/80 bg-white/78 shadow-[0_10px_30px_rgba(15,23,42,0.06)]";
+  const softPanelClass = "rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(248,250,252,0.88)_100%)] shadow-[0_10px_24px_rgba(15,23,42,0.05)]";
+
+  return (
+    <div className="space-y-8">
+      <div className="relative overflow-hidden rounded-[2rem] border border-pink-200/60 bg-[linear-gradient(135deg,#111827_0%,#7c3aed_42%,#ec4899_100%)] shadow-[0_24px_80px_rgba(236,72,153,0.18)]">
+        <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_top_left,_white,_transparent_38%)]" />
+        <div className="relative px-6 py-8 sm:px-8 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between text-stone-50">
+          <div className="flex items-center gap-4">
+            {settingsForm.profile_photo_url ? (
+              <img
+                src={settingsForm.profile_photo_url}
+                alt={settingsForm.name || "Admin profile"}
+                className="w-16 h-16 rounded-2xl object-cover border border-white/20"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 text-stone-50 flex items-center justify-center text-2xl font-bold">
+                {(adminUser?.name || "A").slice(0, 1).toUpperCase()}
+              </div>
+            )}
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-pink-100/80">Control Center</p>
+              <h2 className="text-2xl font-semibold">{settingsForm.name || adminUser?.name || "Admin User"}</h2>
+              <p className="text-sm text-stone-200">{settingsForm.email || adminUser?.email || "admin@company.com"}</p>
+              <span className="inline-flex items-center gap-2 mt-3 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[10px] uppercase tracking-[0.2em]">
+                <Settings className="w-3.5 h-3.5" />
+                {adminUser?.role || "admin"}
+              </span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <StatCard label="Recent Logins" value={adminSessions.length} />
+            <StatCard label="Security" value={securityLabel} />
+            <StatCard label="Permissions" value={permissions.length} hiddenOnMobile />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="xl:col-span-2 space-y-6">
+          <div className={cardShellClass}>
+            <div className="px-6 py-5 border-b border-slate-200/70 flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-sky-500">Basic Information</p>
+                <h3 className="text-lg font-semibold text-slate-900">Identity & profile</h3>
+              </div>
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Admin</span>
+            </div>
+            <div className="p-6 space-y-6">
+              <div className={`flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between ${softPanelClass}`}>
+                <div className="flex items-center gap-4">
+                  {settingsForm.profile_photo_url ? (
+                    <img
+                      src={settingsForm.profile_photo_url}
+                      alt={settingsForm.name || "Admin profile"}
+                      className="w-14 h-14 rounded-2xl object-cover border border-slate-200"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-2xl bg-[linear-gradient(135deg,#ec4899,#8b5cf6)] text-stone-50 flex items-center justify-center text-lg font-semibold">
+                      {(settingsForm.name || adminUser?.name || "A").slice(0, 1).toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Profile photo</p>
+                    <p className="text-xs text-slate-500">Upload a square image to personalize your admin account.</p>
+                  </div>
+                </div>
+                <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all hover:-translate-y-0.5 hover:border-sky-300 hover:text-slate-900 hover:shadow-[0_12px_24px_rgba(14,165,233,0.14)]">
+                  <Upload className="w-4 h-4" />
+                  {isUploadingPhoto ? "Uploading..." : "Upload photo"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={isUploadingPhoto}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) {
+                        void onUploadPhoto(file);
+                      }
+                      event.currentTarget.value = "";
+                    }}
+                  />
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <ProfileField label="Name" value={settingsForm.name} onChange={(value) => setSettingsForm({ ...settingsForm, name: value })} />
+                <ProfileField label="Email" type="email" value={settingsForm.email} onChange={(value) => setSettingsForm({ ...settingsForm, email: value })} />
+                <ProfileField label="Phone" type="tel" value={settingsForm.phone || ""} onChange={(value) => setSettingsForm({ ...settingsForm, phone: value })} />
+                <ProfileField label="Profile photo URL" value={settingsForm.profile_photo_url || ""} onChange={(value) => setSettingsForm({ ...settingsForm, profile_photo_url: value })} />
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <p className="text-xs text-slate-500">{settingsStatus || "Changes apply immediately after you save them."}</p>
+                <button
+                  type="button"
+                  onClick={onSaveSettings}
+                  className="sm:w-auto w-full rounded-xl bg-[linear-gradient(135deg,#ec4899,#8b5cf6)] px-6 py-2.5 text-sm font-semibold text-stone-50 shadow-[0_14px_30px_rgba(168,85,247,0.28)] transition-all hover:-translate-y-0.5 hover:opacity-95"
+                >
+                  Save Basic Info
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className={cardShellClass}>
+            <div className="px-6 py-5 border-b border-slate-200/70">
+              <p className="text-xs uppercase tracking-[0.3em] text-pink-500">Preferences</p>
+              <h3 className="text-lg font-semibold text-slate-900">Notification routing</h3>
+            </div>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <ToggleCard
+                title="Email delivery"
+                description="Get admin notices by email."
+                checked={settingsForm.notifications.email}
+                onChange={(checked) => setSettingsForm({ ...settingsForm, notifications: { ...settingsForm.notifications, email: checked } })}
+              />
+              <ToggleCard
+                title="In-app delivery"
+                description="Surface alerts inside the dashboard."
+                checked={settingsForm.notifications.in_app}
+                onChange={(checked) => setSettingsForm({ ...settingsForm, notifications: { ...settingsForm.notifications, in_app: checked } })}
+              />
+              <ToggleCard
+                title="System alerts"
+                description="Notify me about platform and security events."
+                checked={settingsForm.notifications.system_alerts ?? true}
+                onChange={(checked) => setSettingsForm({ ...settingsForm, notifications: { ...settingsForm.notifications, system_alerts: checked } })}
+              />
+              <ToggleCard
+                title="User activity alerts"
+                description="Track submissions, approvals, and user changes."
+                checked={settingsForm.notifications.user_activity_alerts ?? true}
+                onChange={(checked) => setSettingsForm({ ...settingsForm, notifications: { ...settingsForm.notifications, user_activity_alerts: checked } })}
+              />
+            </div>
+          </div>
+
+          <div className={`overflow-hidden ${cardShellClass}`}>
+            <div className="flex items-center justify-between border-b border-slate-200/70 px-6 py-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-violet-500">Security Logs</p>
+                <h3 className="font-bold text-slate-900">Login Activity</h3>
+              </div>
+              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">{adminActivityLogs.length} Logs</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-[linear-gradient(90deg,rgba(244,114,182,0.08),rgba(99,102,241,0.08))] text-xs uppercase tracking-wider text-slate-500">
+                  <tr>
+                    <th className="text-left px-6 py-3">Action</th>
+                    <th className="text-left px-6 py-3">Time</th>
+                  </tr>
+                </thead>
+                <tbody className="p-4 space-y-4">
+                  {adminActivityLogs.slice(0, 8).map((log) => (
+                    <tr key={log.id} className="transition-colors hover:bg-violet-50/50">
+                      <td className="px-6 py-3 text-slate-700">{log.action}</td>
+                      <td className="px-6 py-3 text-slate-600">
+                        {log.created_at ? new Date(log.created_at).toLocaleString() : "-"}
+                      </td>
+                    </tr>
+                  ))}
+                  {adminActivityLogs.length === 0 && (
+                    <tr>
+                        <td colSpan={2} className="px-6 py-10 text-center text-slate-400 italic">
+                        No activity logs yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className={cardShellClass}>
+            <div className="px-6 py-5 border-b border-slate-200/70">
+              <p className="text-xs uppercase tracking-[0.3em] text-sky-500">Security</p>
+              <h3 className="text-lg font-semibold text-slate-900">Admin safeguards</h3>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className={`flex items-center justify-between px-4 py-3 ${softPanelClass}`}>
+                <div className="flex items-start gap-3">
+                  <ShieldCheck className="mt-0.5 h-5 w-5 text-violet-600" />
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Two-factor authentication</p>
+                    <p className="text-xs text-slate-500">Recommended for every admin account and saved with your profile.</p>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={settingsForm.two_factor_enabled}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, two_factor_enabled: e.target.checked })}
+                  className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                />
+              </div>
+              <div className={`${panelClass} px-4 py-4 space-y-3`}>
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">Change password</p>
+                  <p className="text-xs text-slate-500">Rotate your password regularly and after sensitive access changes.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={onChangePassword}
+                  className="w-full rounded-xl bg-[linear-gradient(135deg,#0ea5e9,#8b5cf6)] py-2.5 text-sm font-semibold text-stone-50 shadow-[0_14px_28px_rgba(59,130,246,0.22)] transition-all hover:-translate-y-0.5 hover:opacity-95"
+                >
+                  Go to Change Password
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className={cardShellClass}>
+            <div className="px-6 py-5 border-b border-slate-200/70">
+              <p className="text-xs uppercase tracking-[0.3em] text-amber-500">Recent Logins</p>
+              <h3 className="text-lg font-semibold text-slate-900">Session visibility</h3>
+            </div>
+            <div className="p-6 space-y-3">
+              {adminSessions.slice(0, 5).map((session) => (
+                <div key={session.id} className={`${panelClass} px-4 py-3 text-xs text-slate-600`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-semibold text-slate-700">{session.status === "active" ? "Active session" : "Signed out"}</span>
+                    <span>{session.last_activity_at ? new Date(session.last_activity_at).toLocaleString() : "-"}</span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-500">{session.ip_address || "IP unavailable"} · {session.user_agent || "Browser unavailable"}</p>
+                </div>
+              ))}
+              {adminSessions.length === 0 && (
+                <p className="text-xs text-slate-400">No session data available.</p>
+              )}
+            </div>
+          </div>
+
+          <div className={cardShellClass}>
+            <div className="px-6 py-5 border-b border-slate-200/70">
+              <p className="text-xs uppercase tracking-[0.3em] text-pink-500">Admin Controls</p>
+              <h3 className="text-lg font-semibold text-slate-900">Role & permissions</h3>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className={`${panelClass} px-4 py-4`}>
+                <p className="text-xs uppercase tracking-widest text-slate-400">Manage own role</p>
+                <p className="mt-2 text-sm font-semibold text-slate-900">{adminUser?.role || "admin"}</p>
+                <p className="mt-1 text-xs text-slate-500">Role changes should be confirmed by another admin or directory owner.</p>
+              </div>
+              <div className={`${panelClass} px-4 py-4`}>
+                <p className="text-xs uppercase tracking-widest text-slate-400">View permissions assigned</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {permissions.map((permission) => (
+                    <span key={permission} className="rounded-full border border-sky-200/80 bg-sky-50/90 px-3 py-1 text-[11px] font-medium text-sky-700 shadow-[0_6px_14px_rgba(14,165,233,0.08)]">
+                      {permission}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className={cardShellClass}>
+            <div className="px-6 py-5 border-b border-slate-200/70">
+              <p className="text-xs uppercase tracking-[0.3em] text-rose-500">Account Actions</p>
+              <h3 className="text-lg font-semibold text-slate-900">Session & account controls</h3>
+            </div>
+            <div className="p-6 space-y-3">
+              <button
+                type="button"
+                onClick={onLogout}
+                className="w-full flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-all hover:-translate-y-0.5 hover:border-sky-300 hover:text-slate-900 hover:shadow-[0_12px_24px_rgba(14,165,233,0.12)]"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </button>
+              <button
+                type="button"
+                onClick={onDeactivate}
+                className="w-full flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-[linear-gradient(180deg,rgba(254,242,242,0.95)_0%,rgba(254,226,226,0.9)_100%)] px-4 py-2.5 text-sm font-semibold text-red-700 transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(239,68,68,0.14)]"
+              >
+                <Power className="w-4 h-4" />
+                Deactivate own account
+              </button>
+              <p className="text-xs text-slate-400">{accountActionStatus || "Deactivation signs you out immediately and should only be used when another admin can restore access if needed."}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProfileField({
+  label,
+  value,
+  onChange,
+  type = "text"
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+}) {
+  return (
+    <div>
+      <label className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-1 w-full rounded-xl border border-slate-200 bg-white/95 px-4 py-3 text-sm text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.04)] transition-all placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-300"
+      />
+    </div>
+  );
+}
+
+function ToggleCard({
+  title,
+  description,
+  checked,
+  onChange
+}: {
+  title: string;
+  description: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(248,250,252,0.88)_100%)] px-4 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_30px_rgba(15,23,42,0.08)]">
+      <div>
+        <p className="text-sm font-semibold text-slate-900">{title}</p>
+        <p className="text-xs text-slate-500">{description}</p>
+      </div>
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500" />
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  hiddenOnMobile = false
+}: {
+  label: string;
+  value: string | number;
+  hiddenOnMobile?: boolean;
+}) {
+  return (
+    <div className={`rounded-2xl border border-white/15 bg-white/10 px-4 py-3 ${hiddenOnMobile ? "hidden sm:block" : ""}`}>
+      <p className="text-[10px] uppercase tracking-[0.25em] text-stone-200">{label}</p>
+      <p className="text-2xl font-semibold">{value}</p>
+    </div>
+  );
+}
+
 function AnalyticsCard({ label, value, icon, color }: { label: string, value: string | number, icon: React.ReactNode, color: string }) {
   return (
-    <div className={`p-6 rounded-2xl border border-stone-200 shadow-sm ${color}`}>
+    <div className={`rounded-[1.5rem] border border-white/10 p-6 shadow-[0_18px_55px_rgba(15,23,42,0.1)] backdrop-blur-xl transition-all hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(15,23,42,0.14)] ${color}`}>
       <div className="flex justify-between items-start mb-4">
-        <div className="p-2 bg-white rounded-lg border border-stone-100 shadow-sm">
+        <div className="rounded-xl border border-white/50 bg-white/75 p-2.5 shadow-[0_10px_24px_rgba(15,23,42,0.08)]">
           {icon}
         </div>
       </div>
       <div className="space-y-0.5">
-        <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">{label}</p>
-        <p className="text-2xl font-bold tracking-tight">{value}</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">{label}</p>
+        <p className="text-2xl font-bold tracking-tight text-slate-950">{value}</p>
       </div>
     </div>
   );
@@ -1277,25 +1583,26 @@ function StatusPill({ status }: { status: "active" | "offline" }) {
 
 function Modal({ title, children, onClose }: { title: string, children: React.ReactNode, onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-md">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden max-h-[85vh]"
+        className="max-h-[85vh] w-full max-w-md overflow-hidden rounded-[1.75rem] border border-white/30 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.95)_100%)] shadow-[0_30px_90px_rgba(15,23,42,0.22)]"
       >
-        <div className="px-6 py-4 border-b border-stone-100 flex justify-between items-center bg-stone-50/50">
-          <h3 className="font-bold">{title}</h3>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-900 transition-colors">
+        <div className="flex items-center justify-between border-b border-slate-200/80 bg-[linear-gradient(90deg,rgba(14,165,233,0.08),rgba(236,72,153,0.08))] px-6 py-4">
+          <h3 className="font-bold text-slate-900">{title}</h3>
+          <button onClick={onClose} className="text-slate-400 transition-colors hover:text-slate-900">
             <Plus className="w-5 h-5 rotate-45" />
           </button>
         </div>
-        <div className="p-6 overflow-y-auto max-h-[calc(85vh-4rem)]">
+        <div className="max-h-[calc(85vh-4rem)] overflow-y-auto p-6">
           {children}
         </div>
       </motion.div>
     </div>
   );
 }
+
 
 
 

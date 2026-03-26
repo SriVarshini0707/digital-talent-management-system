@@ -5,6 +5,11 @@ import { motion, AnimatePresence } from "motion/react";
 import { Link } from "react-router-dom";
 
 export default function UserDashboard() {
+  const getStoredTheme = (): "light" | "dark" => {
+    if (typeof window === "undefined") return "light";
+    return window.localStorage.getItem("dtms-theme") === "dark" ? "dark" : "light";
+  };
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [submittingTask, setSubmittingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
@@ -24,6 +29,7 @@ export default function UserDashboard() {
   const [drafts, setDrafts] = useState<Record<string, { content: string; documentUrl: string; savedAt: string }>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [activePanel, setActivePanel] = useState<"tasks" | "views" | "notifications" | "achievements" | "calendar" | "progress">("tasks");
+  const [theme, setTheme] = useState<"light" | "dark">(getStoredTheme);
 
   const closeSubmissionModal = () => {
     setSubmittingTask(null);
@@ -89,6 +95,17 @@ export default function UserDashboard() {
       credentials: "include",
       body: JSON.stringify({ action: "Viewed dashboard" })
     }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const handleThemeChange = (event: Event) => {
+      const nextTheme = (event as CustomEvent<"light" | "dark">).detail;
+      if (nextTheme === "dark" || nextTheme === "light") {
+        setTheme(nextTheme);
+      }
+    };
+    window.addEventListener("dtms-theme-change", handleThemeChange as EventListener);
+    return () => window.removeEventListener("dtms-theme-change", handleThemeChange as EventListener);
   }, []);
 
   useEffect(() => {
@@ -449,24 +466,44 @@ export default function UserDashboard() {
     return { total, completed, submitted, pending, rejected, completionRate };
   }, [tasks]);
 
+  const isDark = theme === "dark";
+  const sectionCardClass = isDark
+    ? "rounded-[1.5rem] border border-white/10 bg-white/8 shadow-[0_18px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl"
+    : "rounded-[1.5rem] border border-white/10 bg-white/82 shadow-[0_18px_50px_rgba(15,23,42,0.12)] backdrop-blur-xl";
+  const panelTitleClass = isDark ? "text-slate-100" : "text-slate-900";
+  const panelSubtleTextClass = isDark ? "text-slate-300" : "text-slate-800";
+  const mutedTextClass = isDark ? "text-slate-400" : "text-slate-400";
+  const softPanelClass = isDark
+    ? "rounded-xl border border-white/10 bg-white/6"
+    : "rounded-xl border border-slate-200 bg-slate-50/80";
+  const inputClass = isDark
+    ? "w-full rounded-xl border border-white/10 bg-slate-950/55 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-4 focus:ring-cyan-500/10 focus:border-cyan-400"
+    : "w-full px-3 py-2 bg-white border border-sky-100 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-sky-100 focus:border-sky-300";
+  const ghostButtonClass = isDark
+    ? "w-full md:w-auto rounded-xl border border-white/10 bg-white/6 px-4 py-2 text-sm font-semibold text-slate-300 hover:border-cyan-400/40 hover:bg-white/10 hover:text-white"
+    : "w-full md:w-auto px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 border border-slate-200 hover:border-sky-300 hover:bg-sky-50";
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">My Tasks</h1>
-          <p className="text-stone-500 mt-1">Track and submit your assigned work</p>
+      <div className="relative overflow-hidden rounded-[2rem] border border-sky-200/60 bg-[linear-gradient(135deg,#0f172a_0%,#1d4ed8_42%,#06b6d4_100%)] px-6 py-7 text-white shadow-[0_24px_80px_rgba(14,165,233,0.18)]">
+        <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_top_left,_white,_transparent_38%)]" />
+        <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-cyan-100/80">Workspace</p>
+            <h1 className="text-3xl font-bold tracking-tight">My Tasks</h1>
+            <p className="mt-1 text-sm text-slate-100/80">Track assignments, focus on priorities, and submit work with confidence.</p>
+          </div>
+          <Link
+            to="/profile"
+            className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/15"
+          >
+            <Settings className="w-4 h-4" />
+            Profile Settings
+          </Link>
         </div>
-        <Link
-          to="/profile"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border border-stone-200 bg-white text-sm font-semibold text-stone-700 hover:border-stone-300 hover:text-stone-900"
-        >
-          <Settings className="w-4 h-4" />
-          Profile Settings
-        </Link>
       </div>
 
-      <div className="bg-white border border-stone-200 rounded-2xl shadow-sm p-3 sm:p-4 flex flex-wrap gap-2">
+      <div className={`${sectionCardClass} p-3 sm:p-4 flex flex-wrap gap-2`}>
         {[
           { id: "tasks", label: "Tasks" },
           { id: "calendar", label: "Calendar" },
@@ -480,8 +517,10 @@ export default function UserDashboard() {
             onClick={() => setActivePanel(item.id as typeof activePanel)}
             className={`px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-widest border ${
               activePanel === item.id
-                ? "bg-stone-900 text-stone-50 border-stone-900"
-                : "bg-white text-stone-600 border-stone-200 hover:border-stone-300"
+                ? "bg-[linear-gradient(135deg,#0ea5e9,#8b5cf6)] text-white border-transparent shadow-sm"
+                : isDark
+                  ? "bg-white/6 text-slate-300 border-white/10 hover:border-cyan-400/40 hover:text-white"
+                  : "bg-white text-slate-600 border-slate-200 hover:border-sky-300 hover:text-slate-900"
             }`}
           >
             {item.label}
@@ -491,11 +530,11 @@ export default function UserDashboard() {
 
       {activePanel === "tasks" && (
         <>
-          <div className="bg-white border border-stone-200 rounded-2xl shadow-sm p-4 sm:p-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className={`${sectionCardClass} p-4 sm:p-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
             <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
               <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-stone-400">Filters</p>
-                <p className="text-sm font-semibold text-stone-800">Refine your task list</p>
+                <p className="text-xs uppercase tracking-[0.3em] text-sky-500">Filters</p>
+                <p className={`text-sm font-semibold ${panelSubtleTextClass}`}>Refine your task list</p>
               </div>
             </div>
             <div className="flex flex-col md:flex-row gap-3 md:items-center">
@@ -503,12 +542,12 @@ export default function UserDashboard() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search tasks..."
-                className="w-full md:w-64 px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 focus:border-stone-300"
+                className={`w-full md:w-64 ${inputClass}`}
               />
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as "all" | TaskStatus)}
-                className="w-full md:w-44 px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 focus:border-stone-300"
+                className={`w-full md:w-44 ${inputClass}`}
               >
                 <option value="all">All Statuses</option>
                 <option value={TaskStatus.PENDING}>Pending</option>
@@ -519,7 +558,7 @@ export default function UserDashboard() {
               <select
                 value={priorityFilter}
                 onChange={(e) => setPriorityFilter(e.target.value as "all" | TaskPriority)}
-                className="w-full md:w-44 px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 focus:border-stone-300"
+                className={`w-full md:w-44 ${inputClass}`}
               >
                 <option value="all">All Priorities</option>
                 <option value={TaskPriority.LOW}>Low</option>
@@ -534,17 +573,17 @@ export default function UserDashboard() {
                   setPriorityFilter("all");
                   setSearchQuery("");
                 }}
-                className="w-full md:w-auto px-4 py-2 rounded-lg text-sm font-semibold text-stone-600 border border-stone-200 hover:bg-stone-50"
+                className={ghostButtonClass}
               >
                 Clear
               </button>
             </div>
           </div>
 
-          <div className="bg-white border border-stone-200 rounded-2xl shadow-sm p-4 sm:p-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className={`${sectionCardClass} p-4 sm:p-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-stone-400">Views</p>
-              <p className="text-sm font-semibold text-stone-800">Quickly focus on what matters</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-pink-500">Views</p>
+              <p className={`text-sm font-semibold ${panelSubtleTextClass}`}>Quickly focus on what matters</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <button
@@ -552,8 +591,10 @@ export default function UserDashboard() {
                 onClick={() => setViewPreset("all")}
                 className={`px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-widest border ${
                   viewPreset === "all"
-                    ? "bg-stone-900 text-stone-50 border-stone-900"
-                    : "bg-white text-stone-600 border-stone-200 hover:border-stone-300"
+                    ? "bg-[linear-gradient(135deg,#ec4899,#8b5cf6)] text-white border-transparent"
+                    : isDark
+                      ? "bg-white/6 text-slate-300 border-white/10 hover:border-pink-300/40 hover:text-white"
+                      : "bg-white text-slate-600 border-slate-200 hover:border-pink-300"
                 }`}
               >
                 All Tasks
@@ -564,7 +605,9 @@ export default function UserDashboard() {
                 className={`px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-widest border ${
                   viewPreset === "dueSoon"
                     ? "bg-amber-500 text-white border-amber-500"
-                    : "bg-white text-stone-600 border-stone-200 hover:border-stone-300"
+                    : isDark
+                      ? "bg-white/6 text-slate-300 border-white/10 hover:border-amber-300/40 hover:text-white"
+                      : "bg-white text-slate-600 border-slate-200 hover:border-amber-300"
                 }`}
               >
                 Due Soon ({presetCounts.dueSoon})
@@ -575,7 +618,9 @@ export default function UserDashboard() {
                 className={`px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-widest border ${
                   viewPreset === "highPriority"
                     ? "bg-red-500 text-white border-red-500"
-                    : "bg-white text-stone-600 border-stone-200 hover:border-stone-300"
+                    : isDark
+                      ? "bg-white/6 text-slate-300 border-white/10 hover:border-rose-300/40 hover:text-white"
+                      : "bg-white text-slate-600 border-slate-200 hover:border-rose-300"
                 }`}
               >
                 High Priority ({presetCounts.highPriority})
@@ -586,7 +631,9 @@ export default function UserDashboard() {
                 className={`px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-widest border ${
                   viewPreset === "needsRevision"
                     ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-white text-stone-600 border-stone-200 hover:border-stone-300"
+                    : isDark
+                      ? "bg-white/6 text-slate-300 border-white/10 hover:border-sky-300/40 hover:text-white"
+                      : "bg-white text-slate-600 border-slate-200 hover:border-sky-300"
                 }`}
               >
                 Needs Revision ({presetCounts.needsRevision})
@@ -599,18 +646,22 @@ export default function UserDashboard() {
               <motion.div 
                 key={task.id}
                 layout
-                className="bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-sm flex flex-col"
+                className={`overflow-hidden rounded-[1.5rem] border flex flex-col transition-all duration-200 hover:-translate-y-1 ${
+                  isDark
+                    ? "border-white/10 bg-[linear-gradient(180deg,rgba(30,41,59,0.92)_0%,rgba(15,23,42,0.96)_100%)] shadow-[0_22px_60px_rgba(2,6,23,0.35)] hover:shadow-[0_28px_80px_rgba(34,211,238,0.12)]"
+                    : "border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,252,0.94)_100%)] shadow-[0_22px_60px_rgba(15,23,42,0.12)] hover:shadow-[0_28px_80px_rgba(14,165,233,0.16)]"
+                }`}
               >
                 <div className="p-6 flex-1 space-y-4">
                   <div className="flex justify-between items-start">
                     <StatusBadge status={task.status} />
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                       ID: {task.id}
                     </span>
                   </div>
                   <div className="space-y-2">
-                    <h3 className="font-bold text-xl leading-tight">{task.title}</h3>
-                    <p className="text-stone-500 text-sm line-clamp-3">{task.description}</p>
+                    <h3 className={`font-bold text-xl leading-tight ${panelTitleClass}`}>{task.title}</h3>
+                    <p className={`text-sm line-clamp-3 ${isDark ? "text-slate-300" : "text-slate-500"}`}>{task.description}</p>
                     {drafts[task.id] && (
                       <span className="inline-flex text-[10px] uppercase tracking-widest font-semibold px-2 py-1 rounded-full bg-amber-100 text-amber-700">
                         Draft saved
@@ -622,12 +673,12 @@ export default function UserDashboard() {
                       </span>
                     )}
                     {task.revision_history && task.revision_history.length > 0 && (
-                      <div className="mt-3 p-3 bg-stone-50 rounded-lg border border-stone-100">
-                        <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-2">Revision History</p>
+                      <div className={`mt-3 p-3 ${softPanelClass}`}>
+                        <p className={`mb-2 text-[10px] font-bold uppercase tracking-widest ${mutedTextClass}`}>Revision History</p>
                         <div className="space-y-2">
                           {[...task.revision_history].reverse().map((entry, index) => (
-                            <div key={`${task.id}-history-${index}`} className="text-xs text-stone-600">
-                              <div className="flex items-center justify-between text-[10px] text-stone-400 uppercase tracking-widest">
+                            <div key={`${task.id}-history-${index}`} className={`text-xs ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+                              <div className={`flex items-center justify-between text-[10px] uppercase tracking-widest ${mutedTextClass}`}>
                                 <span>{entry.admin_name || "Admin"}</span>
                                 <span>{new Date(entry.created_at).toLocaleString()}</span>
                               </div>
@@ -638,9 +689,9 @@ export default function UserDashboard() {
                       </div>
                     )}
                     {(!task.revision_history || task.revision_history.length === 0) && task.admin_feedback && (
-                      <div className="mt-3 p-3 bg-stone-50 rounded-lg border border-stone-100">
-                        <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Admin Feedback</p>
-                        <p className="text-xs text-stone-600 italic">"{task.admin_feedback}"</p>
+                      <div className={`mt-3 p-3 ${softPanelClass}`}>
+                        <p className={`mb-1 text-[10px] font-bold uppercase tracking-widest ${mutedTextClass}`}>Admin Feedback</p>
+                        <p className={`text-xs italic ${isDark ? "text-slate-300" : "text-slate-600"}`}>"{task.admin_feedback}"</p>
                       </div>
                     )}
                     {task.categories && task.categories.length > 0 && (
@@ -648,7 +699,11 @@ export default function UserDashboard() {
                         {task.categories.map((category) => (
                           <span
                             key={`${task.id}-${category}`}
-                            className="text-[10px] font-semibold uppercase tracking-wider bg-stone-100 text-stone-600 border border-stone-200 px-2 py-1 rounded-full"
+                            className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wider ${
+                              isDark
+                                ? "border border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
+                                : "border border-sky-100 bg-sky-50 text-sky-700"
+                            }`}
                           >
                             #{category}
                           </span>
@@ -656,7 +711,7 @@ export default function UserDashboard() {
                       </div>
                     )}
                   </div>
-                  <div className="pt-2 border-t border-stone-50 space-y-2 text-xs text-stone-400">
+                  <div className={`space-y-2 border-t pt-2 text-xs ${isDark ? "border-white/10 text-slate-400" : "border-slate-100 text-slate-400"}`}>
                     <div className="flex items-center gap-2">
                       <Clock className="w-3.5 h-3.5" />
                       Assigned: {new Date(task.created_at).toLocaleDateString()}
@@ -676,21 +731,29 @@ export default function UserDashboard() {
                   </div>
                 </div>
                 
-                <div className="px-6 py-4 bg-stone-50 border-t border-stone-100 flex flex-col sm:flex-row gap-2 sm:justify-end">
+                <div className={`flex flex-col gap-2 border-t px-6 py-4 sm:flex-row sm:justify-end ${
+                  isDark
+                    ? "border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.65)_0%,rgba(2,6,23,0.82)_100%)]"
+                    : "border-slate-100 bg-[linear-gradient(180deg,#fff7ed_0%,#fffafc_100%)]"
+                }`}>
                   <button 
                     onClick={() => setViewingTask(task)}
-                    className="w-full sm:w-auto px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition-all border border-stone-200 text-stone-700 hover:bg-white"
+                    className={`w-full sm:w-auto px-4 py-2 rounded-xl font-medium flex items-center justify-center gap-2 transition-all border ${
+                      isDark
+                        ? "border-white/10 bg-white/6 text-slate-200 hover:border-cyan-400/40 hover:bg-white/10"
+                        : "border-slate-200 text-slate-700 hover:border-sky-300 hover:bg-white"
+                    }`}
                   >
                     View Task
-                    <FileText className="w-4 h-4 text-stone-500" />
+                    <FileText className={`w-4 h-4 ${isDark ? "text-slate-400" : "text-stone-500"}`} />
                   </button>
                   {task.status === TaskStatus.PENDING || task.status === TaskStatus.REJECTED ? (
                     <button 
                       onClick={() => setSubmittingTask(task)}
                       className={`w-full sm:w-auto px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition-all group ${
                         task.status === TaskStatus.REJECTED 
-                          ? "bg-red-600 text-white hover:bg-red-700" 
-                          : "bg-stone-900 text-stone-50 hover:bg-stone-800"
+                      ? "bg-[linear-gradient(135deg,#ef4444,#f97316)] text-white hover:opacity-95" 
+                          : "bg-[linear-gradient(135deg,#0ea5e9,#8b5cf6)] text-white hover:opacity-95"
                       }`}
                     >
                       {task.status === TaskStatus.REJECTED ? "Resubmit Work" : "Submit Work"}
@@ -699,7 +762,9 @@ export default function UserDashboard() {
                   ) : (
                     <button 
                       onClick={() => setSubmittingTask(task)}
-                      className="w-full sm:w-auto px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition-all bg-stone-200 text-stone-700 hover:bg-stone-300"
+                      className={`w-full sm:w-auto px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition-all ${
+                        isDark ? "bg-white/8 text-slate-200 hover:bg-white/12" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      }`}
                     >
                       View Discussion
                       <CheckCircle className={`w-4 h-4 ${task.status === TaskStatus.COMPLETED ? "text-emerald-500" : "text-blue-500"}`} />
@@ -709,7 +774,9 @@ export default function UserDashboard() {
               </motion.div>
             ))}
             {filteredTasks.length === 0 && (
-              <div className="col-span-full p-12 bg-stone-100/50 border-2 border-dashed border-stone-200 rounded-2xl text-center text-stone-400 font-medium italic">
+              <div className={`col-span-full rounded-[1.5rem] border border-dashed p-12 text-center font-medium italic backdrop-blur-xl ${
+                isDark ? "border-white/15 bg-white/6 text-slate-400" : "border-white/15 bg-white/70 text-slate-400"
+              }`}>
                 No tasks match the current filters.
               </div>
             )}
@@ -718,17 +785,17 @@ export default function UserDashboard() {
       )}
 
       {activePanel === "notifications" && (
-        <div className="bg-white border border-stone-200 rounded-2xl shadow-sm overflow-hidden">
-          <div className="px-6 py-5 border-b border-stone-100 flex items-center justify-between">
+        <div className={`overflow-hidden ${sectionCardClass}`}>
+          <div className={`flex items-center justify-between border-b px-6 py-5 ${isDark ? "border-white/10" : "border-slate-100"}`}>
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-stone-400">Notifications</p>
-              <h2 className="text-lg font-semibold text-stone-900">Reminders & Updates</h2>
+              <p className="text-xs uppercase tracking-[0.3em] text-sky-500">Notifications</p>
+              <h2 className={`text-lg font-semibold ${panelTitleClass}`}>Reminders & Updates</h2>
             </div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-stone-400">Latest</span>
+            <span className={`text-xs font-semibold uppercase tracking-wider ${mutedTextClass}`}>Latest</span>
           </div>
           <div className="p-6 space-y-3">
             {notifications.length === 0 && (
-              <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-500">
+              <div className={`${softPanelClass} px-4 py-3 text-sm ${isDark ? "text-slate-300" : "text-slate-500"}`}>
                 You are all caught up. No new reminders right now.
               </div>
             )}
@@ -740,7 +807,9 @@ export default function UserDashboard() {
                     ? "border-red-200 bg-red-50 text-red-700"
                     : item.tone === "info"
                       ? "border-blue-200 bg-blue-50 text-blue-700"
-                      : "border-stone-200 bg-stone-50 text-stone-700"
+                      : isDark
+                        ? "border-white/10 bg-white/6 text-slate-200"
+                        : "border-slate-200 bg-slate-50 text-slate-700"
                 }`}
               >
                 <p className="text-sm font-semibold">{item.title}</p>
@@ -752,13 +821,13 @@ export default function UserDashboard() {
       )}
 
       {activePanel === "achievements" && (
-        <div className="bg-white border border-stone-200 rounded-2xl shadow-sm overflow-hidden">
-          <div className="px-6 py-5 border-b border-stone-100 flex items-center justify-between">
+        <div className={`overflow-hidden ${sectionCardClass}`}>
+          <div className={`flex items-center justify-between border-b px-6 py-5 ${isDark ? "border-white/10" : "border-slate-100"}`}>
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-stone-400">Achievements</p>
-              <h2 className="text-lg font-semibold text-stone-900">Your Progress</h2>
+              <p className="text-xs uppercase tracking-[0.3em] text-pink-500">Achievements</p>
+              <h2 className={`text-lg font-semibold ${panelTitleClass}`}>Your Progress</h2>
             </div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-stone-400">
+            <span className={`text-xs font-semibold uppercase tracking-wider ${mutedTextClass}`}>
               {achievements.filter((badge) => badge.achieved).length}/{achievements.length} Earned
             </span>
           </div>
@@ -769,7 +838,9 @@ export default function UserDashboard() {
                 className={`rounded-xl border px-4 py-3 ${
                   badge.achieved
                     ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-stone-200 bg-stone-50 text-stone-600"
+                    : isDark
+                      ? "border-white/10 bg-white/6 text-slate-300"
+                      : "border-slate-200 bg-slate-50 text-slate-600"
                 }`}
               >
                 <p className="text-sm font-semibold">{badge.title}</p>
@@ -784,25 +855,25 @@ export default function UserDashboard() {
       )}
 
       {activePanel === "calendar" && (
-        <div className="bg-white border border-stone-200 rounded-2xl shadow-sm overflow-hidden">
-          <div className="px-6 py-5 border-b border-stone-100 flex items-center justify-between">
+        <div className={`overflow-hidden ${sectionCardClass}`}>
+          <div className={`flex items-center justify-between border-b px-6 py-5 ${isDark ? "border-white/10" : "border-slate-100"}`}>
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-stone-400">Calendar</p>
-              <h2 className="text-lg font-semibold text-stone-900">Upcoming Deadlines</h2>
+              <p className="text-xs uppercase tracking-[0.3em] text-amber-500">Calendar</p>
+              <h2 className={`text-lg font-semibold ${panelTitleClass}`}>Upcoming Deadlines</h2>
             </div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-stone-400">Next 6</span>
+            <span className={`text-xs font-semibold uppercase tracking-wider ${mutedTextClass}`}>Next 6</span>
           </div>
           <div className="p-6 space-y-3">
             {upcomingTasks.length === 0 && (
-              <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-500">
+              <div className={`${softPanelClass} px-4 py-3 text-sm ${isDark ? "text-slate-300" : "text-slate-500"}`}>
                 No upcoming deadlines. You are all set.
               </div>
             )}
             {upcomingTasks.map(({ task, due, diffDays }) => (
-              <div key={`${task.id}-upcoming`} className="flex items-center justify-between gap-4 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
+              <div key={`${task.id}-upcoming`} className={`flex items-center justify-between gap-4 px-4 py-3 ${softPanelClass}`}>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-stone-800 truncate">{task.title}</p>
-                  <p className="text-xs text-stone-500">Due {due.toLocaleDateString()}</p>
+                  <p className={`text-sm font-semibold truncate ${panelSubtleTextClass}`}>{task.title}</p>
+                  <p className={`text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}>Due {due.toLocaleDateString()}</p>
                 </div>
                 <span
                   className={`text-[10px] font-semibold uppercase tracking-widest px-2 py-1 rounded-full ${
@@ -822,18 +893,18 @@ export default function UserDashboard() {
       )}
 
       {activePanel === "progress" && (
-        <div className="bg-white border border-stone-200 rounded-2xl shadow-sm overflow-hidden">
-          <div className="px-6 py-5 border-b border-stone-100 flex items-center justify-between">
+        <div className={`overflow-hidden ${sectionCardClass}`}>
+          <div className={`flex items-center justify-between border-b px-6 py-5 ${isDark ? "border-white/10" : "border-slate-100"}`}>
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-stone-400">Progress</p>
-              <h2 className="text-lg font-semibold text-stone-900">Completion Overview</h2>
+              <p className="text-xs uppercase tracking-[0.3em] text-emerald-500">Progress</p>
+              <h2 className={`text-lg font-semibold ${panelTitleClass}`}>Completion Overview</h2>
             </div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-stone-400">
+            <span className={`text-xs font-semibold uppercase tracking-wider ${mutedTextClass}`}>
               {progressStats.completionRate}% Done
             </span>
           </div>
           <div className="p-6 space-y-4">
-            <div className="h-3 rounded-full bg-stone-100 overflow-hidden">
+            <div className={`h-3 overflow-hidden rounded-full ${isDark ? "bg-white/10" : "bg-slate-100"}`}>
               <div
                 className="h-full bg-emerald-500 transition-all"
                 style={{
@@ -843,23 +914,23 @@ export default function UserDashboard() {
               />
             </div>
             {progressStats.total === 0 && (
-              <p className="text-xs text-stone-400">No tasks yet. Progress will appear once tasks are assigned.</p>
+              <p className={`text-xs ${mutedTextClass}`}>No tasks yet. Progress will appear once tasks are assigned.</p>
             )}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-xs text-stone-600">
-                <p className="text-[10px] uppercase tracking-widest text-stone-400">Completed</p>
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/80 px-4 py-3 text-xs text-emerald-700">
+                <p className="text-[10px] uppercase tracking-widest text-emerald-500">Completed</p>
                 <p className="text-lg font-semibold text-emerald-600">{progressStats.completed}</p>
               </div>
-              <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-xs text-stone-600">
-                <p className="text-[10px] uppercase tracking-widest text-stone-400">Submitted</p>
+              <div className="rounded-xl border border-sky-100 bg-sky-50/80 px-4 py-3 text-xs text-sky-700">
+                <p className="text-[10px] uppercase tracking-widest text-sky-500">Submitted</p>
                 <p className="text-lg font-semibold text-blue-600">{progressStats.submitted}</p>
               </div>
-              <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-xs text-stone-600">
-                <p className="text-[10px] uppercase tracking-widest text-stone-400">Pending</p>
+              <div className="rounded-xl border border-amber-100 bg-amber-50/80 px-4 py-3 text-xs text-amber-700">
+                <p className="text-[10px] uppercase tracking-widest text-amber-500">Pending</p>
                 <p className="text-lg font-semibold text-amber-600">{progressStats.pending}</p>
               </div>
-              <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-xs text-stone-600">
-                <p className="text-[10px] uppercase tracking-widest text-stone-400">Rejected</p>
+              <div className="rounded-xl border border-rose-100 bg-rose-50/80 px-4 py-3 text-xs text-rose-700">
+                <p className="text-[10px] uppercase tracking-widest text-rose-500">Rejected</p>
                 <p className="text-lg font-semibold text-red-600">{progressStats.rejected}</p>
               </div>
             </div>
@@ -869,24 +940,28 @@ export default function UserDashboard() {
 
       <AnimatePresence>
         {viewingTask && (
-          <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-slate-950/55 backdrop-blur-md">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden"
+              className={`w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden ${
+                isDark
+                  ? "border border-white/10 bg-[linear-gradient(180deg,rgba(30,41,59,0.96)_0%,rgba(15,23,42,0.98)_100%)]"
+                  : "bg-white"
+              }`}
             >
-              <div className="px-6 py-4 border-b border-stone-100 flex justify-between items-center bg-stone-50/50">
+              <div className={`px-6 py-4 flex justify-between items-center ${isDark ? "border-b border-white/10 bg-white/6" : "border-b border-stone-100 bg-stone-50/50"}`}>
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-stone-900 rounded-lg">
-                    <FileText className="w-4 h-4 text-stone-50" />
+                  <div className={`p-2 rounded-lg ${isDark ? "bg-cyan-500/15" : "bg-stone-900"}`}>
+                    <FileText className={`w-4 h-4 ${isDark ? "text-cyan-200" : "text-stone-50"}`} />
                   </div>
                   <div>
-                    <h3 className="font-bold">Task Details</h3>
-                    <p className="text-xs text-stone-500">{viewingTask.title}</p>
+                    <h3 className={`font-bold ${panelTitleClass}`}>Task Details</h3>
+                    <p className={`text-xs ${isDark ? "text-slate-400" : "text-stone-500"}`}>{viewingTask.title}</p>
                   </div>
                 </div>
-                <button onClick={closeViewingModal} className="text-stone-400 hover:text-stone-900 transition-colors">
+                <button onClick={closeViewingModal} className={`${isDark ? "text-slate-400 hover:text-white" : "text-stone-400 hover:text-stone-900"} transition-colors`}>
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -943,11 +1018,11 @@ export default function UserDashboard() {
                   <p className="text-[10px] uppercase tracking-widest text-stone-400">Saved locally in your browser.</p>
                 </div>
               </div>
-              <div className="px-6 py-4 border-t border-stone-100 flex flex-col sm:flex-row gap-3 sm:justify-end bg-white">
+              <div className={`px-6 py-4 flex flex-col sm:flex-row gap-3 sm:justify-end ${isDark ? "border-t border-white/10 bg-white/6" : "border-t border-stone-100 bg-white"}`}>
                 <button 
                   type="button"
                   onClick={closeViewingModal}
-                  className="w-full sm:w-auto px-4 py-2.5 border border-stone-200 rounded-lg font-medium text-stone-600 hover:bg-stone-50 transition-all"
+                  className={`w-full sm:w-auto px-4 py-2.5 rounded-lg font-medium transition-all ${isDark ? "border border-white/10 text-slate-300 hover:bg-white/8" : "border border-stone-200 text-stone-600 hover:bg-stone-50"}`}
                 >
                   Close
                 </button>
@@ -958,7 +1033,7 @@ export default function UserDashboard() {
                       setSubmittingTask(viewingTask);
                       setViewingTask(null);
                     }}
-                    className="w-full sm:w-auto bg-stone-900 text-stone-50 px-4 py-2.5 rounded-lg font-medium hover:bg-stone-800 transition-all flex items-center justify-center gap-2"
+                    className={`w-full sm:w-auto px-4 py-2.5 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${isDark ? "bg-[linear-gradient(135deg,#0ea5e9,#8b5cf6)] text-white hover:opacity-95" : "bg-stone-900 text-stone-50 hover:bg-stone-800"}`}
                   >
                     {viewingTask.status === TaskStatus.REJECTED ? "Resubmit Work" : "Submit Work"}
                     <Send className="w-4 h-4" />
@@ -972,21 +1047,25 @@ export default function UserDashboard() {
 
       <AnimatePresence>
         {submittingTask && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/55 backdrop-blur-md">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden"
+              className={`w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden ${
+                isDark
+                  ? "border border-white/10 bg-[linear-gradient(180deg,rgba(30,41,59,0.96)_0%,rgba(15,23,42,0.98)_100%)]"
+                  : "bg-white"
+              }`}
             >
-              <div className="px-6 py-4 border-b border-stone-100 flex justify-between items-center bg-stone-50/50">
+              <div className={`px-6 py-4 flex justify-between items-center ${isDark ? "border-b border-white/10 bg-white/6" : "border-b border-stone-100 bg-stone-50/50"}`}>
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-stone-900 rounded-lg">
-                    <FileText className="w-4 h-4 text-stone-50" />
+                  <div className={`p-2 rounded-lg ${isDark ? "bg-cyan-500/15" : "bg-stone-900"}`}>
+                    <FileText className={`w-4 h-4 ${isDark ? "text-cyan-200" : "text-stone-50"}`} />
                   </div>
-                  <h3 className="font-bold">{canSubmit ? "Submit" : "Discussion"}: {submittingTask.title}</h3>
+                  <h3 className={`font-bold ${panelTitleClass}`}>{canSubmit ? "Submit" : "Discussion"}: {submittingTask.title}</h3>
                 </div>
-                <button onClick={closeSubmissionModal} className="text-stone-400 hover:text-stone-900 transition-colors">
+                <button onClick={closeSubmissionModal} className={`${isDark ? "text-slate-400 hover:text-white" : "text-stone-400 hover:text-stone-900"} transition-colors`}>
                   <X className="w-5 h-5" />
                 </button>
               </div>

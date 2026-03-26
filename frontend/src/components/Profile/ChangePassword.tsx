@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, KeyRound, ShieldCheck } from "lucide-react";
+import { ArrowLeft, KeyRound, ShieldCheck, Sparkles } from "lucide-react";
 
 export default function ChangePassword() {
   const navigate = useNavigate();
@@ -53,78 +53,65 @@ export default function ChangePassword() {
     <div className="space-y-8">
       <button
         type="button"
-        onClick={() => navigate("/")}
-        className="inline-flex items-center gap-2 text-sm font-semibold text-stone-600 hover:text-stone-900"
+        onClick={() => navigate("/profile")}
+        className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm shadow-sky-100/80 transition-colors hover:border-sky-300 hover:text-slate-900"
       >
         <ArrowLeft className="w-4 h-4" />
-        Back to Dashboard
+        Back to Profile
       </button>
 
-      <div className="relative overflow-hidden rounded-3xl border border-stone-200 shadow-sm">
-        <div className="absolute inset-0 bg-gradient-to-r from-stone-900 via-stone-800 to-stone-700" />
-        <div className="absolute inset-0 opacity-50 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.2),_transparent_55%)]" />
-        <div className="relative px-6 py-8 sm:px-8 flex flex-col gap-4 text-stone-50">
+      <div className="relative overflow-hidden rounded-[2rem] border border-sky-200/70 shadow-[0_30px_80px_rgba(14,165,233,0.18)]">
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,#0ea5e9_0%,#8b5cf6_48%,#ec4899_100%)]" />
+        <div className="absolute inset-0 opacity-35 bg-[radial-gradient(circle_at_top_left,_white,_transparent_40%)]" />
+        <div className="relative px-6 py-8 sm:px-8 flex flex-col gap-5 text-white">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center">
-              <KeyRound className="w-6 h-6" />
+            <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center">
+              <KeyRound className="w-7 h-7" />
             </div>
             <div>
-              <p className="text-xs uppercase tracking-[0.35em] text-stone-200">Security</p>
-              <h1 className="text-2xl font-semibold">Change Password</h1>
-              <p className="text-sm text-stone-200">Keep your account protected with regular updates.</p>
+              <p className="text-xs uppercase tracking-[0.35em] text-white/70">Security</p>
+              <h1 className="text-3xl font-semibold">Change Password</h1>
+              <p className="text-sm text-white/80">Refresh your credentials with a stronger, safer password.</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-xs text-stone-200">
-            <ShieldCheck className="w-4 h-4" />
-            Strong passwords help prevent unauthorized access.
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs text-white/85">
+            <Sparkles className="w-4 h-4" />
+            Strong passwords reduce unauthorized access risk.
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
-        <div className="bg-white border border-stone-200 rounded-2xl shadow-sm">
-          <div className="px-6 py-5 border-b border-stone-100">
-            <h2 className="text-lg font-semibold text-stone-900">Update Credentials</h2>
-            <p className="text-xs text-stone-500">Use a unique password you don’t use elsewhere.</p>
+      <div className="grid grid-cols-1 lg:grid-cols-[1.8fr_1fr] gap-6">
+        <div className="rounded-[1.75rem] border border-pink-200/70 bg-white/90 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+          <div className="border-b border-slate-100 px-6 py-5">
+            <h2 className="text-lg font-semibold text-slate-900">Update Credentials</h2>
+            <p className="text-xs text-slate-500">Choose a unique password you do not use anywhere else.</p>
           </div>
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Current password</label>
-              <input
-                type="password"
-                value={form.current_password}
-                onChange={(e) => setForm({ ...form, current_password: e.target.value })}
-                className="mt-1 w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 focus:border-stone-300"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">New password</label>
-              <input
-                type="password"
-                value={form.new_password}
-                onChange={(e) => setForm({ ...form, new_password: e.target.value })}
-                className="mt-1 w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 focus:border-stone-300"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Confirm new password</label>
-              <input
-                type="password"
-                value={form.confirm_password}
-                onChange={(e) => setForm({ ...form, confirm_password: e.target.value })}
-                className="mt-1 w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 focus:border-stone-300"
-              />
-            </div>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              {status ? (
-                <p className="text-xs text-stone-500">{status}</p>
-              ) : (
-                <p className="text-xs text-stone-400">Minimum 8 characters recommended.</p>
-              )}
+          <form onSubmit={handleSubmit} className="space-y-4 p-6">
+            <PasswordField
+              label="Current password"
+              value={form.current_password}
+              onChange={(value) => setForm({ ...form, current_password: value })}
+            />
+            <PasswordField
+              label="New password"
+              value={form.new_password}
+              onChange={(value) => setForm({ ...form, new_password: value })}
+            />
+            <PasswordField
+              label="Confirm new password"
+              value={form.confirm_password}
+              onChange={(value) => setForm({ ...form, confirm_password: value })}
+            />
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className={`text-xs ${status ? "text-slate-600" : "text-slate-400"}`}>
+                {status || "Minimum 8 characters recommended."}
+              </p>
               <button
                 type="submit"
                 disabled={isSaving}
-                className="sm:w-auto w-full bg-stone-900 text-stone-50 px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-stone-800 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="sm:w-auto w-full rounded-xl bg-[linear-gradient(135deg,#ec4899,#8b5cf6)] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-pink-100 transition-all hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSaving ? "Updating..." : "Update Password"}
               </button>
@@ -133,20 +120,47 @@ export default function ChangePassword() {
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-2xl border border-stone-200 bg-stone-50 p-5">
-            <p className="text-xs uppercase tracking-[0.3em] text-stone-400">Tips</p>
-            <ul className="mt-3 space-y-3 text-sm text-stone-700">
+          <div className="rounded-[1.5rem] border border-sky-200/70 bg-[linear-gradient(180deg,#eff6ff_0%,#fdf4ff_100%)] p-5">
+            <p className="text-xs uppercase tracking-[0.3em] text-sky-600">Tips</p>
+            <ul className="mt-3 space-y-3 text-sm text-slate-700">
               <li>Use a mix of letters, numbers, and symbols.</li>
               <li>Avoid reusing old passwords.</li>
               <li>Consider enabling two-factor authentication.</li>
             </ul>
           </div>
-          <div className="rounded-2xl border border-stone-200 bg-white p-5">
-            <p className="text-xs uppercase tracking-[0.3em] text-stone-400">Need Help?</p>
-            <p className="mt-2 text-sm text-stone-600">If you suspect unusual activity, update your password immediately and contact support.</p>
+          <div className="rounded-[1.5rem] border border-amber-200/70 bg-[linear-gradient(180deg,#fff7ed_0%,#fffaf5_100%)] p-5">
+            <div className="flex items-center gap-2 text-amber-700">
+              <ShieldCheck className="w-4 h-4" />
+              <p className="text-xs uppercase tracking-[0.3em]">Need Help?</p>
+            </div>
+            <p className="mt-2 text-sm text-slate-600">
+              If you suspect unusual activity, update your password immediately and contact support.
+            </p>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PasswordField({
+  label,
+  value,
+  onChange
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div>
+      <label className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">{label}</label>
+      <input
+        type="password"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 w-full rounded-xl border border-pink-100 bg-gradient-to-b from-white to-pink-50/30 px-3 py-3 text-sm text-slate-900 outline-none transition focus:border-pink-300 focus:ring-4 focus:ring-pink-100"
+      />
     </div>
   );
 }

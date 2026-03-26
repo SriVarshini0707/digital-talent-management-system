@@ -45,13 +45,26 @@ const ALLOWED_UPLOAD_EXTENSIONS = new Set([
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
+  email_verified: { type: Boolean, default: true },
   password: { type: String, required: true },
+  phone: { type: String, default: "" },
+  profile_photo_url: { type: String, default: "" },
+  bio: { type: String, default: "" },
+  theme: { type: String, default: "light", enum: ["light", "dark"] },
   role: { type: String, default: "user", enum: ["user", "admin"] },
   notifications: {
     email: { type: Boolean, default: true },
-    in_app: { type: Boolean, default: true }
+    in_app: { type: Boolean, default: true },
+    system_alerts: { type: Boolean, default: true },
+    user_activity_alerts: { type: Boolean, default: true }
   },
-  two_factor_enabled: { type: Boolean, default: false }
+  privacy: {
+    profile_visible: { type: Boolean, default: true },
+    show_email: { type: Boolean, default: false },
+    show_phone: { type: Boolean, default: false }
+  },
+  two_factor_enabled: { type: Boolean, default: false },
+  is_active: { type: Boolean, default: true }
 }, {
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
@@ -244,13 +257,25 @@ async function startServer() {
     if (!token) return res.status(401).json({ error: "Unauthorized" });
     try {
       const decoded: any = jwt.verify(token, JWT_SECRET);
-      const user = await User.findById(decoded.id).select("name email role");
-      if (!user) return res.status(401).json({ error: "Unauthorized" });
+      const user = await User.findById(decoded.id).select("name email email_verified phone profile_photo_url bio theme role notifications privacy two_factor_enabled is_active");
+      if (!user || user.is_active === false) {
+        res.clearCookie("token");
+        return res.status(401).json({ error: "Unauthorized" });
+      }
       req.user = {
         id: user.id,
         name: user.name,
         email: user.email,
+        email_verified: user.email_verified,
+        phone: user.phone,
+        profile_photo_url: user.profile_photo_url,
+        bio: user.bio,
+        theme: user.theme,
         role: user.role,
+        notifications: user.notifications,
+        privacy: user.privacy,
+        two_factor_enabled: user.two_factor_enabled,
+        is_active: user.is_active,
         session_id: decoded.session_id
       };
       if (decoded?.session_id) {
@@ -286,11 +311,14 @@ async function startServer() {
 
   app.post("/api/auth/login", async (req, res) => {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
-    if (!user || !bcrypt.compareSync(password, user.password)) {
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
-    const session = await UserSession.create({
+      const user = await User.findOne({ email });
+      if (!user || !bcrypt.compareSync(password, user.password)) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      if (user.is_active === false) {
+        return res.status(403).json({ error: "Account deactivated. Contact another admin to restore access." });
+      }
+      const session = await UserSession.create({
       user_id: user._id,
       login_at: new Date(),
       last_activity_at: new Date(),
@@ -309,7 +337,24 @@ async function startServer() {
       sameSite: "lax"
     });
     await logActivity(user.id, "Logged in");
-    res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+      res.json({
+        success: true,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          email_verified: user.email_verified,
+          phone: user.phone,
+          profile_photo_url: user.profile_photo_url,
+          bio: user.bio,
+          theme: user.theme,
+          role: user.role,
+          notifications: user.notifications,
+          privacy: user.privacy,
+          two_factor_enabled: user.two_factor_enabled,
+          is_active: user.is_active
+        }
+      });
   });
 
   app.post("/api/auth/logout", (_req, res) => {
@@ -340,7 +385,7 @@ async function startServer() {
 
   app.get("/api/settings/me", authenticate, async (req: any, res) => {
     try {
-      const user = await User.findById(req.user.id).select("name email role notifications two_factor_enabled");
+      const user = await User.findById(req.user.id).select("name email email_verified phone profile_photo_url bio theme role notifications privacy two_factor_enabled is_active");
       if (!user) return res.status(404).json({ error: "User not found" });
       res.json({ user });
     } catch (err) {
@@ -349,20 +394,35 @@ async function startServer() {
   });
 
   app.put("/api/settings/me", authenticate, async (req: any, res) => {
-    const { name, email, notifications, two_factor_enabled } = req.body || {};
+    const { name, email, phone, profile_photo_url, bio, theme, notifications, privacy, two_factor_enabled } = req.body || {};
     try {
       const user = await User.findById(req.user.id);
       if (!user) return res.status(404).json({ error: "User not found" });
-      if (email && email !== user.email) {
+      const emailChanged = Boolean(email && email !== user.email);
+      if (emailChanged) {
         const existing = await User.findOne({ email });
         if (existing) return res.status(400).json({ error: "Email already exists" });
         user.email = email;
+        user.email_verified = false;
       }
       if (name) user.name = name;
+      if (typeof phone === "string") user.phone = phone;
+      if (typeof profile_photo_url === "string") user.profile_photo_url = profile_photo_url;
+      if (typeof bio === "string") user.bio = bio;
+      if (theme === "light" || theme === "dark") user.theme = theme;
       if (notifications) {
         user.notifications = {
           email: typeof notifications.email === "boolean" ? notifications.email : user.notifications?.email ?? true,
-          in_app: typeof notifications.in_app === "boolean" ? notifications.in_app : user.notifications?.in_app ?? true
+          in_app: typeof notifications.in_app === "boolean" ? notifications.in_app : user.notifications?.in_app ?? true,
+          system_alerts: typeof notifications.system_alerts === "boolean" ? notifications.system_alerts : user.notifications?.system_alerts ?? true,
+          user_activity_alerts: typeof notifications.user_activity_alerts === "boolean" ? notifications.user_activity_alerts : user.notifications?.user_activity_alerts ?? true
+        };
+      }
+      if (privacy) {
+        user.privacy = {
+          profile_visible: typeof privacy.profile_visible === "boolean" ? privacy.profile_visible : user.privacy?.profile_visible ?? true,
+          show_email: typeof privacy.show_email === "boolean" ? privacy.show_email : user.privacy?.show_email ?? false,
+          show_phone: typeof privacy.show_phone === "boolean" ? privacy.show_phone : user.privacy?.show_phone ?? false
         };
       }
       if (typeof two_factor_enabled === "boolean") {
@@ -382,7 +442,83 @@ async function startServer() {
         sameSite: "lax"
       });
 
-      res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role, notifications: user.notifications, two_factor_enabled: user.two_factor_enabled } });
+      res.json({
+        success: true,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          email_verified: user.email_verified,
+          phone: user.phone,
+          profile_photo_url: user.profile_photo_url,
+          bio: user.bio,
+          theme: user.theme,
+          role: user.role,
+          notifications: user.notifications,
+          privacy: user.privacy,
+          two_factor_enabled: user.two_factor_enabled,
+          is_active: user.is_active
+        }
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.post("/api/settings/deactivate", authenticate, async (req: any, res) => {
+    try {
+      const user = await User.findById(req.user.id);
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      user.is_active = false;
+      await user.save();
+      await UserSession.findByIdAndUpdate(req.user.session_id, {
+        logout_at: new Date(),
+        status: "offline"
+      }).catch(() => {});
+      await logActivity(req.user.id, "Deactivated own account");
+
+      res.clearCookie("token");
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.post("/api/settings/logout-all", authenticate, async (req: any, res) => {
+    try {
+      await UserSession.updateMany(
+        { user_id: req.user.id, status: "active" },
+        { logout_at: new Date(), status: "offline" }
+      );
+      await logActivity(req.user.id, "Logged out from all devices");
+      res.clearCookie("token");
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.post("/api/settings/delete", authenticate, async (req: any, res) => {
+    const { current_password } = req.body || {};
+    if (!current_password) {
+      return res.status(400).json({ error: "Current password is required" });
+    }
+    try {
+      const user = await User.findById(req.user.id);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      const ok = bcrypt.compareSync(current_password, user.password);
+      if (!ok) return res.status(400).json({ error: "Current password is incorrect" });
+
+      await UserSession.updateMany(
+        { user_id: req.user.id },
+        { logout_at: new Date(), status: "offline" }
+      );
+      await logActivity(req.user.id, "Deleted own account");
+      await User.findByIdAndDelete(req.user.id);
+
+      res.clearCookie("token");
+      res.json({ success: true });
     } catch (err) {
       res.status(500).json({ error: "Internal server error" });
     }
@@ -454,7 +590,7 @@ async function startServer() {
     }
   });
 
-  app.put("/api/tasks/:id", authenticate, isAdmin, async (req, res) => {
+  app.put("/api/tasks/:id", authenticate, isAdmin, async (req: any, res) => {
     const { title, description, assigned_to, status, admin_feedback, due_date, priority, categories } = req.body;
     try {
       const task = await Task.findById(req.params.id);
@@ -629,9 +765,10 @@ async function startServer() {
     }
   });
 
-  app.get("/api/sessions", authenticate, isAdmin, async (_req, res) => {
+  app.get("/api/sessions", authenticate, async (req: any, res) => {
     try {
-      const sessions = await UserSession.find()
+      const query = req.user.role === "admin" ? {} : { user_id: req.user.id };
+      const sessions = await UserSession.find(query)
         .populate("user_id", "name email role")
         .sort({ login_at: -1 })
         .limit(200);
