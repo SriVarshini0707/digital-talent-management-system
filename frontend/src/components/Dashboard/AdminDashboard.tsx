@@ -5,6 +5,11 @@ import { motion } from "motion/react";
 import { Task, Analytics, User, TaskStatus, Submission, TaskPriority, TaskComment, UserSession, ActivityLog, UserSettingsUpdate } from "../../types";
 
 export default function AdminDashboard() {
+  const getStoredTheme = (): "light" | "dark" => {
+    if (typeof window === "undefined") return "light";
+    return window.localStorage.getItem("dtms-theme") === "dark" ? "dark" : "light";
+  };
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
@@ -40,6 +45,7 @@ export default function AdminDashboard() {
   const [commentText, setCommentText] = useState("");
   const [replyTo, setReplyTo] = useState<TaskComment | null>(null);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">(getStoredTheme);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -351,6 +357,17 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const handleThemeChange = (event: Event) => {
+      const nextTheme = (event as CustomEvent<"light" | "dark">).detail;
+      if (nextTheme === "dark" || nextTheme === "light") {
+        setTheme(nextTheme);
+      }
+    };
+    window.addEventListener("dtms-theme-change", handleThemeChange as EventListener);
+    return () => window.removeEventListener("dtms-theme-change", handleThemeChange as EventListener);
+  }, []);
+
   const handleSaveSettings = async () => {
     setSettingsStatus(null);
     setAccountActionStatus(null);
@@ -442,6 +459,54 @@ export default function AdminDashboard() {
     window.location.reload();
   };
 
+  const isDark = theme === "dark";
+  const sectionShellClass = isDark
+    ? "rounded-[1.5rem] border border-cyan-400/15 bg-slate-900/65 p-3 shadow-[0_18px_50px_rgba(8,15,30,0.4)] backdrop-blur-xl sm:p-4 flex flex-wrap gap-2"
+    : "rounded-[1.5rem] border border-pink-200/60 bg-white/85 p-3 shadow-[0_18px_50px_rgba(236,72,153,0.08)] backdrop-blur-xl sm:p-4 flex flex-wrap gap-2";
+  const filterLabelClass = isDark
+    ? "text-xs font-semibold uppercase tracking-wider text-cyan-300"
+    : "text-xs font-semibold uppercase tracking-wider text-pink-500";
+  const selectClass = isDark
+    ? "px-3 py-2 bg-slate-950/80 border border-cyan-400/20 rounded-xl text-sm text-slate-100 focus:outline-none focus:ring-4 focus:ring-cyan-500/10 focus:border-cyan-300"
+    : "px-3 py-2 bg-white border border-pink-100 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-pink-100 focus:border-pink-300";
+  const tableShellClass = isDark
+    ? "rounded-[1.5rem] border border-white/10 overflow-hidden bg-slate-900/70 shadow-[0_18px_50px_rgba(8,15,30,0.34)] backdrop-blur-xl"
+    : "rounded-[1.5rem] border border-sky-200/60 overflow-hidden bg-white/90 shadow-[0_18px_50px_rgba(14,165,233,0.08)]";
+  const activityTableShellClass = isDark
+    ? "rounded-[1.5rem] border border-white/10 overflow-hidden bg-slate-900/70 shadow-[0_18px_50px_rgba(8,15,30,0.34)] backdrop-blur-xl"
+    : "rounded-[1.5rem] border border-pink-200/60 overflow-hidden bg-white/90 shadow-[0_18px_50px_rgba(236,72,153,0.08)]";
+  const tableHeaderClass = isDark
+    ? "px-6 py-4 border-b border-white/10 flex justify-between items-center"
+    : "px-6 py-4 border-b border-stone-100 flex justify-between items-center";
+  const tableTitleClass = isDark ? "font-bold text-slate-100" : "font-bold";
+  const tableCountClass = isDark ? "text-xs font-medium text-slate-500 uppercase tracking-wider" : "text-xs font-medium text-slate-400 uppercase tracking-wider";
+  const tableTheadClass = isDark
+    ? "bg-white/[0.04] text-xs uppercase tracking-wider text-slate-400"
+    : "bg-sky-50/80 text-xs uppercase tracking-wider text-slate-500";
+  const activityTheadClass = isDark
+    ? "bg-white/[0.04] text-xs uppercase tracking-wider text-slate-400"
+    : "bg-pink-50/80 text-xs uppercase tracking-wider text-slate-500";
+  const tableRowClass = isDark ? "hover:bg-white/[0.03]" : "hover:bg-sky-50/50";
+  const activityRowClass = isDark ? "hover:bg-white/[0.03]" : "hover:bg-pink-50/50";
+  const primaryTextClass = isDark ? "text-slate-100" : "text-stone-700";
+  const secondaryTextClass = isDark ? "text-slate-400" : "text-stone-400";
+  const bodyTextClass = isDark ? "text-slate-300" : "text-stone-600";
+  const sectionCardClass = isDark
+    ? "bg-slate-900/70 border border-white/10 rounded-2xl overflow-hidden shadow-[0_18px_50px_rgba(8,15,30,0.34)] backdrop-blur-xl"
+    : "bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-sm";
+  const taskCardClass = isDark
+    ? "p-6 border border-white/10 rounded-xl bg-slate-950/55 shadow-[0_10px_30px_rgba(8,15,30,0.18)] hover:shadow-[0_18px_42px_rgba(8,15,30,0.3)] hover:bg-slate-900/70 transition-all group"
+    : "p-6 border border-stone-200 rounded-xl bg-white shadow-sm hover:shadow-md hover:bg-stone-50/50 transition-all group";
+  const modalLabelClass = isDark
+    ? "text-xs font-semibold uppercase tracking-wider text-slate-400"
+    : "text-xs font-semibold uppercase tracking-wider text-stone-500";
+  const modalInputClass = isDark
+    ? "w-full px-4 py-2.5 bg-slate-950/70 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/15 focus:border-cyan-300 transition-all text-sm text-slate-100"
+    : "w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm";
+  const modalPanelClass = isDark
+    ? "p-4 bg-white/[0.04] rounded-xl border border-white/10 space-y-3"
+    : "p-4 bg-stone-50 rounded-xl border border-stone-100 space-y-3";
+
   return (
     <>
     <div className="space-y-8">
@@ -464,7 +529,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="rounded-[1.5rem] border border-pink-200/60 bg-white/85 p-3 shadow-[0_18px_50px_rgba(236,72,153,0.08)] backdrop-blur-xl sm:p-4 flex flex-wrap gap-2">
+      <div className={sectionShellClass}>
         {[
           { id: "overview", label: "Overview", icon: <LayoutDashboard className="w-4 h-4" /> },
           { id: "tasks", label: "Tasks", icon: <ListChecks className="w-4 h-4" /> },
@@ -479,7 +544,9 @@ export default function AdminDashboard() {
             className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-widest border ${
               activeSection === item.id
                 ? "bg-[linear-gradient(135deg,#ec4899,#8b5cf6)] text-white border-transparent shadow-sm"
-                : "bg-white text-slate-600 border-slate-200 hover:border-pink-300 hover:text-slate-900"
+                : isDark
+                  ? "bg-slate-950/80 text-slate-300 border-white/10 hover:border-cyan-300/40 hover:text-white"
+                  : "bg-white text-slate-600 border-slate-200 hover:border-pink-300 hover:text-slate-900"
             }`}
           >
             {item.icon}
@@ -491,11 +558,11 @@ export default function AdminDashboard() {
         {activeSection === "overview" && (
           <>
             <div className="flex flex-wrap items-center gap-3">
-              <div className="text-xs font-semibold uppercase tracking-wider text-pink-500">Department Filter</div>
+              <div className={filterLabelClass}>Department Filter</div>
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-3 py-2 bg-white border border-pink-100 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-4 focus:ring-pink-100 focus:border-pink-300"
+                className={selectClass}
               >
                 <option value="all">All Categories</option>
                 {categoryOptions.map((category) => (
@@ -511,37 +578,41 @@ export default function AdminDashboard() {
                   value={effectiveAnalytics.total} 
                   icon={<FileText className="w-5 h-5" />} 
                   color="bg-stone-100"
+                  dark={isDark}
                 />
                 <AnalyticsCard 
                   label="Completed" 
                   value={effectiveAnalytics.completed} 
                   icon={<CheckCircle className="w-5 h-5 text-emerald-600" />} 
                   color="bg-emerald-50"
+                  dark={isDark}
                 />
                 <AnalyticsCard 
                   label="Pending" 
                   value={effectiveAnalytics.pending} 
                   icon={<Clock className="w-5 h-5 text-amber-600" />} 
                   color="bg-amber-50"
+                  dark={isDark}
                 />
                 <AnalyticsCard 
                   label="Rejected" 
                   value={(effectiveAnalytics as any).rejected || 0} 
                   icon={<XCircle className="w-5 h-5 text-red-600" />} 
                   color="bg-red-50"
+                  dark={isDark}
                 />
               </div>
             )}
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <div className="rounded-[1.5rem] border border-sky-200/60 overflow-hidden bg-white/90 shadow-[0_18px_50px_rgba(14,165,233,0.08)]">
-                <div className="px-6 py-4 border-b border-stone-100 flex justify-between items-center">
-                  <h2 className="font-bold">Recent Sessions</h2>
-                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">{sessions.length} Sessions</span>
+              <div className={tableShellClass}>
+                <div className={tableHeaderClass}>
+                  <h2 className={tableTitleClass}>Recent Sessions</h2>
+                  <span className={tableCountClass}>{sessions.length} Sessions</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-sky-50/80 text-xs uppercase tracking-wider text-slate-500">
+                    <thead className={tableTheadClass}>
                       <tr>
                         <th className="text-left px-6 py-3">User</th>
                         <th className="text-left px-6 py-3">Status</th>
@@ -550,22 +621,22 @@ export default function AdminDashboard() {
                     </thead>
                     <tbody className="p-4 space-y-4">
                       {sessions.slice(0, 6).map((session) => (
-                        <tr key={session.id} className="hover:bg-sky-50/50">
+                        <tr key={session.id} className={tableRowClass}>
                           <td className="px-6 py-3">
-                            <div className="font-semibold text-stone-700">{session.user_name}</div>
-                            <div className="text-xs text-stone-400">{session.user_email}</div>
+                            <div className={`font-semibold ${primaryTextClass}`}>{session.user_name}</div>
+                            <div className={`text-xs ${secondaryTextClass}`}>{session.user_email}</div>
                           </td>
                           <td className="px-6 py-3">
-                            <StatusPill status={session.status} />
+                            <StatusPill status={session.status} dark={isDark} />
                           </td>
-                          <td className="px-6 py-3 text-stone-600">
+                          <td className={`px-6 py-3 ${bodyTextClass}`}>
                             {session.login_at ? new Date(session.login_at).toLocaleString() : "-"}
                           </td>
                         </tr>
                       ))}
                       {sessions.length === 0 && (
                         <tr>
-                          <td colSpan={3} className="px-6 py-10 text-center text-stone-400 italic">
+                          <td colSpan={3} className={`px-6 py-10 text-center italic ${secondaryTextClass}`}>
                             No session data yet.
                           </td>
                         </tr>
@@ -575,14 +646,14 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="rounded-[1.5rem] border border-pink-200/60 overflow-hidden bg-white/90 shadow-[0_18px_50px_rgba(236,72,153,0.08)]">
-                <div className="px-6 py-4 border-b border-stone-100 flex justify-between items-center">
-                  <h2 className="font-bold">Recent Activity</h2>
-                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">{activityLogs.length} Logs</span>
+              <div className={activityTableShellClass}>
+                <div className={tableHeaderClass}>
+                  <h2 className={tableTitleClass}>Recent Activity</h2>
+                  <span className={tableCountClass}>{activityLogs.length} Logs</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-pink-50/80 text-xs uppercase tracking-wider text-slate-500">
+                    <thead className={activityTheadClass}>
                       <tr>
                         <th className="text-left px-6 py-3">User</th>
                         <th className="text-left px-6 py-3">Action</th>
@@ -591,20 +662,20 @@ export default function AdminDashboard() {
                     </thead>
                     <tbody className="p-4 space-y-4">
                       {activityLogs.slice(0, 6).map((log) => (
-                        <tr key={log.id} className="hover:bg-pink-50/50">
+                        <tr key={log.id} className={activityRowClass}>
                           <td className="px-6 py-3">
-                            <div className="font-semibold text-stone-700">{log.user_name}</div>
-                            <div className="text-xs text-stone-400">{log.user_email}</div>
+                            <div className={`font-semibold ${primaryTextClass}`}>{log.user_name}</div>
+                            <div className={`text-xs ${secondaryTextClass}`}>{log.user_email}</div>
                           </td>
-                          <td className="px-6 py-3 text-stone-700">{log.action}</td>
-                          <td className="px-6 py-3 text-stone-600">
+                          <td className={`px-6 py-3 ${primaryTextClass}`}>{log.action}</td>
+                          <td className={`px-6 py-3 ${bodyTextClass}`}>
                             {log.created_at ? new Date(log.created_at).toLocaleString() : "-"}
                           </td>
                         </tr>
                       ))}
                       {activityLogs.length === 0 && (
                         <tr>
-                          <td colSpan={3} className="px-6 py-10 text-center text-stone-400 italic">
+                          <td colSpan={3} className={`px-6 py-10 text-center italic ${secondaryTextClass}`}>
                             No activity logs yet.
                           </td>
                         </tr>
@@ -618,14 +689,14 @@ export default function AdminDashboard() {
         )}
 
         {activeSection === "sessions" && (
-          <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-sm">
-            <div className="px-6 py-4 border-b border-stone-100 flex justify-between items-center">
-              <h2 className="font-bold">User Sessions</h2>
-              <span className="text-xs font-medium text-stone-400 uppercase tracking-wider">{sessions.length} Sessions</span>
+          <div className={sectionCardClass}>
+            <div className={tableHeaderClass}>
+              <h2 className={tableTitleClass}>User Sessions</h2>
+              <span className={tableCountClass}>{sessions.length} Sessions</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-stone-50 text-xs uppercase tracking-wider text-stone-500">
+                <thead className={isDark ? "bg-white/[0.04] text-xs uppercase tracking-wider text-slate-400" : "bg-stone-50 text-xs uppercase tracking-wider text-stone-500"}>
                   <tr>
                     <th className="text-left px-6 py-3">User</th>
                     <th className="text-left px-6 py-3">Status</th>
@@ -636,28 +707,28 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody className="p-4 space-y-4">
                   {sessions.map((session) => (
-                    <tr key={session.id} className="hover:bg-stone-50/60">
+                    <tr key={session.id} className={isDark ? "hover:bg-white/[0.03]" : "hover:bg-stone-50/60"}>
                       <td className="px-6 py-3">
-                        <div className="font-semibold text-stone-700">{session.user_name}</div>
-                        <div className="text-xs text-stone-400">{session.user_email}</div>
+                        <div className={`font-semibold ${primaryTextClass}`}>{session.user_name}</div>
+                        <div className={`text-xs ${secondaryTextClass}`}>{session.user_email}</div>
                       </td>
                       <td className="px-6 py-3">
-                        <StatusPill status={session.status} />
+                        <StatusPill status={session.status} dark={isDark} />
                       </td>
-                      <td className="px-6 py-3 text-stone-600">
+                      <td className={`px-6 py-3 ${bodyTextClass}`}>
                         {session.login_at ? new Date(session.login_at).toLocaleString() : "-"}
                       </td>
-                      <td className="px-6 py-3 text-stone-600">
+                      <td className={`px-6 py-3 ${bodyTextClass}`}>
                         {session.last_activity_at ? new Date(session.last_activity_at).toLocaleString() : "-"}
                       </td>
-                      <td className="px-6 py-3 text-stone-600">
+                      <td className={`px-6 py-3 ${bodyTextClass}`}>
                         {session.logout_at ? new Date(session.logout_at).toLocaleString() : "-"}
                       </td>
                     </tr>
                   ))}
                   {sessions.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-6 py-10 text-center text-stone-400 italic">
+                      <td colSpan={5} className={`px-6 py-10 text-center italic ${secondaryTextClass}`}>
                         No session data yet.
                       </td>
                     </tr>
@@ -669,14 +740,14 @@ export default function AdminDashboard() {
         )}
 
         {activeSection === "logs" && (
-          <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-sm">
-            <div className="px-6 py-4 border-b border-stone-100 flex justify-between items-center">
-              <h2 className="font-bold">Activity Logs</h2>
-              <span className="text-xs font-medium text-stone-400 uppercase tracking-wider">{activityLogs.length} Logs</span>
+          <div className={sectionCardClass}>
+            <div className={tableHeaderClass}>
+              <h2 className={tableTitleClass}>Activity Logs</h2>
+              <span className={tableCountClass}>{activityLogs.length} Logs</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-stone-50 text-xs uppercase tracking-wider text-stone-500">
+                <thead className={isDark ? "bg-white/[0.04] text-xs uppercase tracking-wider text-slate-400" : "bg-stone-50 text-xs uppercase tracking-wider text-stone-500"}>
                   <tr>
                     <th className="text-left px-6 py-3">User</th>
                     <th className="text-left px-6 py-3">Action</th>
@@ -685,20 +756,20 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody className="p-4 space-y-4">
                   {activityLogs.map((log) => (
-                    <tr key={log.id} className="hover:bg-stone-50/60">
+                    <tr key={log.id} className={isDark ? "hover:bg-white/[0.03]" : "hover:bg-stone-50/60"}>
                       <td className="px-6 py-3">
-                        <div className="font-semibold text-stone-700">{log.user_name}</div>
-                        <div className="text-xs text-stone-400">{log.user_email}</div>
+                        <div className={`font-semibold ${primaryTextClass}`}>{log.user_name}</div>
+                        <div className={`text-xs ${secondaryTextClass}`}>{log.user_email}</div>
                       </td>
-                      <td className="px-6 py-3 text-stone-700">{log.action}</td>
-                      <td className="px-6 py-3 text-stone-600">
+                      <td className={`px-6 py-3 ${primaryTextClass}`}>{log.action}</td>
+                      <td className={`px-6 py-3 ${bodyTextClass}`}>
                         {log.created_at ? new Date(log.created_at).toLocaleString() : "-"}
                       </td>
                     </tr>
                   ))}
                   {activityLogs.length === 0 && (
                     <tr>
-                      <td colSpan={3} className="px-6 py-10 text-center text-stone-400 italic">
+                      <td colSpan={3} className={`px-6 py-10 text-center italic ${secondaryTextClass}`}>
                         No activity logs yet.
                       </td>
                     </tr>
@@ -712,11 +783,11 @@ export default function AdminDashboard() {
         {activeSection === "tasks" && (
           <>
             <div className="flex flex-wrap items-center gap-3">
-              <div className="text-xs font-semibold uppercase tracking-wider text-stone-500">Department Filter</div>
+              <div className={filterLabelClass}>Department Filter</div>
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900"
+                className={isDark ? "px-3 py-2 bg-slate-950/80 border border-white/10 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-300" : "px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900"}
               >
                 <option value="all">All Categories</option>
                 {categoryOptions.map((category) => (
@@ -725,27 +796,27 @@ export default function AdminDashboard() {
               </select>
             </div>
 
-            <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-sm">
-              <div className="px-6 py-4 border-b border-stone-100 flex justify-between items-center">
-                <h2 className="font-bold">Task Management</h2>
-                <span className="text-xs font-medium text-stone-400 uppercase tracking-wider">{filteredTasks.length} Tasks</span>
+            <div className={sectionCardClass}>
+              <div className={tableHeaderClass}>
+                <h2 className={tableTitleClass}>Task Management</h2>
+                <span className={tableCountClass}>{filteredTasks.length} Tasks</span>
               </div>
               <div className="p-4 space-y-4">
                 {filteredTasks.map((task) => (
-                  <div key={task.id} className="p-6 border border-stone-200 rounded-xl bg-white shadow-sm hover:shadow-md hover:bg-stone-50/50 transition-all group">
+                  <div key={task.id} className={taskCardClass}>
                     <div className="flex justify-between items-start">
                       <div className="space-y-1">
                         <div className="flex items-center gap-3">
-                          <h3 className="font-semibold text-lg">{task.title}</h3>
-                          <StatusBadge status={task.status} />
+                          <h3 className={`font-semibold text-lg ${isDark ? "text-slate-50" : ""}`}>{task.title}</h3>
+                          <StatusBadge status={task.status} dark={isDark} />
                         </div>
-                        <p className="text-stone-500 text-sm max-w-2xl">{task.description}</p>
+                        <p className={`text-sm max-w-2xl ${isDark ? "text-slate-400" : "text-stone-500"}`}>{task.description}</p>
                         {task.categories && task.categories.length > 0 && (
                           <div className="flex flex-wrap gap-2 mt-3">
                             {task.categories.map((category) => (
                               <span
                                 key={`${task.id}-${category}`}
-                                className="text-[10px] font-semibold uppercase tracking-wider bg-stone-100 text-stone-600 border border-stone-200 px-2 py-1 rounded-full"
+                                className={isDark ? "text-[10px] font-semibold uppercase tracking-wider bg-cyan-400/10 text-cyan-200 border border-cyan-400/20 px-2 py-1 rounded-full" : "text-[10px] font-semibold uppercase tracking-wider bg-stone-100 text-stone-600 border border-stone-200 px-2 py-1 rounded-full"}
                               >
                                 #{category}
                               </span>
@@ -753,23 +824,23 @@ export default function AdminDashboard() {
                           </div>
                         )}
                         <div className="flex items-center gap-4 mt-4 flex-wrap">
-                          <div className="flex items-center gap-1.5 text-xs text-stone-400">
+                          <div className={`flex items-center gap-1.5 text-xs ${secondaryTextClass}`}>
                             <Users className="w-3.5 h-3.5" />
-                            Assigned to: <span className="text-stone-600 font-medium">{task.assigned_to_name || "Unassigned"}</span>
+                            Assigned to: <span className={`font-medium ${bodyTextClass}`}>{task.assigned_to_name || "Unassigned"}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 text-xs text-stone-400">
+                          <div className={`flex items-center gap-1.5 text-xs ${secondaryTextClass}`}>
                             <Clock className="w-3.5 h-3.5" />
-                            Created: <span className="text-stone-600 font-medium">{new Date(task.created_at).toLocaleDateString()}</span>
+                            Created: <span className={`font-medium ${bodyTextClass}`}>{new Date(task.created_at).toLocaleDateString()}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 text-xs text-stone-400">
+                          <div className={`flex items-center gap-1.5 text-xs ${secondaryTextClass}`}>
                             <Clock className="w-3.5 h-3.5" />
-                            Due: <span className="text-stone-600 font-medium">{task.due_date ? new Date(task.due_date).toLocaleDateString() : "No due date"}</span>
+                            Due: <span className={`font-medium ${bodyTextClass}`}>{task.due_date ? new Date(task.due_date).toLocaleDateString() : "No due date"}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 text-xs text-stone-400">
+                          <div className={`flex items-center gap-1.5 text-xs ${secondaryTextClass}`}>
                             <Clock className="w-3.5 h-3.5" />
-                            Days Remaining: <span className="text-stone-600 font-medium">{getDaysRemainingLabel(task.due_date)}</span>
+                            Days Remaining: <span className={`font-medium ${bodyTextClass}`}>{getDaysRemainingLabel(task.due_date)}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 text-xs text-stone-400">
+                          <div className={`flex items-center gap-1.5 text-xs ${secondaryTextClass}`}>
                             <BarChart3 className="w-3.5 h-3.5" />
                             Priority: {getPriorityBadge(task.priority)}
                           </div>
@@ -778,20 +849,20 @@ export default function AdminDashboard() {
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
                           onClick={() => handleViewSubmissions(task)}
-                          className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider"
+                          className={isDark ? "p-2 text-cyan-300 hover:bg-cyan-400/10 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider" : "p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider"}
                         >
                           <Eye className="w-4 h-4" />
                           {task.status === TaskStatus.SUBMITTED ? "Review" : "Discuss"}
                         </button>
                         <button 
                           onClick={() => setEditingTask({ ...task, priority: task.priority || TaskPriority.MEDIUM })}
-                          className="p-2 text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-all"
+                          className={isDark ? "p-2 text-slate-400 hover:text-white hover:bg-white/8 rounded-lg transition-all" : "p-2 text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-all"}
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={() => handleDeleteTask(task.id)}
-                          className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                          className={isDark ? "p-2 text-slate-400 hover:text-rose-300 hover:bg-rose-400/10 rounded-lg transition-all" : "p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -800,7 +871,7 @@ export default function AdminDashboard() {
                   </div>
                 ))}
                 {filteredTasks.length === 0 && (
-                  <div className="p-12 text-center text-stone-400 font-medium italic">
+                  <div className={`p-12 text-center font-medium italic ${secondaryTextClass}`}>
                     No tasks match this category.
                   </div>
                 )}
@@ -824,57 +895,58 @@ export default function AdminDashboard() {
             onChangePassword={() => navigate("/profile/change-password")}
             onLogout={handleAdminLogout}
             onDeactivate={handleDeactivateAccount}
+            dark={isDark}
           />
         )}
       </div>
       {isAddingTask && (
-        <Modal title="Create New Task" onClose={() => setIsAddingTask(false)}>
+        <Modal title="Create New Task" onClose={() => setIsAddingTask(false)} dark={isDark}>
           <form onSubmit={handleCreateTask} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Title</label>
+              <label className={modalLabelClass}>Title</label>
               <input 
                 required
                 value={newTask.title}
                 onChange={e => setNewTask({ ...newTask, title: e.target.value })}
-                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
+                className={modalInputClass}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Description</label>
+              <label className={modalLabelClass}>Description</label>
               <textarea 
                 required
                 rows={3}
                 value={newTask.description}
                 onChange={e => setNewTask({ ...newTask, description: e.target.value })}
-                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm resize-none"
+                className={`${modalInputClass} resize-none`}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Assign To</label>
+              <label className={modalLabelClass}>Assign To</label>
               <select 
                 value={newTask.assigned_to}
                 onChange={e => setNewTask({ ...newTask, assigned_to: e.target.value })}
-                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
+                className={modalInputClass}
               >
                 <option value="">Unassigned</option>
                 {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Due Date</label>
+              <label className={modalLabelClass}>Due Date</label>
               <input 
                 type="date"
                 value={newTask.due_date}
                 onChange={e => setNewTask({ ...newTask, due_date: e.target.value })}
-                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
+                className={modalInputClass}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Priority</label>
+              <label className={modalLabelClass}>Priority</label>
               <select 
                 value={newTask.priority}
                 onChange={e => setNewTask({ ...newTask, priority: e.target.value as TaskPriority })}
-                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
+                className={modalInputClass}
               >
                 <option value={TaskPriority.LOW}>Low</option>
                 <option value={TaskPriority.MEDIUM}>Medium</option>
@@ -883,15 +955,15 @@ export default function AdminDashboard() {
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Task Categories</label>
+              <label className={modalLabelClass}>Task Categories</label>
               <input 
                 value={newTask.categories}
                 onChange={e => setNewTask({ ...newTask, categories: e.target.value })}
                 placeholder="#Video, #Design, #Copywriting"
-                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
+                className={modalInputClass}
               />
             </div>
-            <button type="submit" className="w-full bg-stone-900 text-stone-50 py-2.5 rounded-lg font-medium hover:bg-stone-800 transition-all">
+            <button type="submit" className={isDark ? "w-full bg-[linear-gradient(135deg,#06b6d4,#8b5cf6)] text-white py-2.5 rounded-lg font-medium hover:opacity-95 transition-all" : "w-full bg-stone-900 text-stone-50 py-2.5 rounded-lg font-medium hover:bg-stone-800 transition-all"}>
               Create Task
             </button>
           </form>
@@ -899,56 +971,56 @@ export default function AdminDashboard() {
       )}
 
       {editingTask && (
-        <Modal title="Edit Task" onClose={() => setEditingTask(null)}>
+        <Modal title="Edit Task" onClose={() => setEditingTask(null)} dark={isDark}>
           <form onSubmit={(e) => { 
             e.preventDefault(); 
             handleUpdateTask({ ...editingTask, categories: parseCategories(editingCategories) }); 
           }} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Title</label>
+              <label className={modalLabelClass}>Title</label>
               <input 
                 required
                 value={editingTask.title}
                 onChange={e => setEditingTask({ ...editingTask, title: e.target.value })}
-                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
+                className={modalInputClass}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Description</label>
+              <label className={modalLabelClass}>Description</label>
               <textarea 
                 required
                 rows={3}
                 value={editingTask.description}
                 onChange={e => setEditingTask({ ...editingTask, description: e.target.value })}
-                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm resize-none"
+                className={`${modalInputClass} resize-none`}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Assign To</label>
+              <label className={modalLabelClass}>Assign To</label>
               <select 
                 value={editingTask.assigned_to || ""}
                 onChange={e => setEditingTask({ ...editingTask, assigned_to: e.target.value || null })}
-                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
+                className={modalInputClass}
               >
                 <option value="">Unassigned</option>
                 {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Due Date</label>
+              <label className={modalLabelClass}>Due Date</label>
               <input 
                 type="date"
                 value={toDateInputValue(editingTask.due_date)}
                 onChange={e => setEditingTask({ ...editingTask, due_date: e.target.value || null })}
-                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
+                className={modalInputClass}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Priority</label>
+              <label className={modalLabelClass}>Priority</label>
               <select 
                 value={editingTask.priority || TaskPriority.MEDIUM}
                 onChange={e => setEditingTask({ ...editingTask, priority: e.target.value as TaskPriority })}
-                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
+                className={modalInputClass}
               >
                 <option value={TaskPriority.LOW}>Low</option>
                 <option value={TaskPriority.MEDIUM}>Medium</option>
@@ -957,20 +1029,20 @@ export default function AdminDashboard() {
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Task Categories</label>
+              <label className={modalLabelClass}>Task Categories</label>
               <input 
                 value={editingCategories}
                 onChange={(e) => setEditingCategories(e.target.value)}
                 placeholder="#Video, #Design, #Copywriting"
-                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
+                className={modalInputClass}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Status</label>
+              <label className={modalLabelClass}>Status</label>
               <select 
                 value={editingTask.status}
                 onChange={e => setEditingTask({ ...editingTask, status: e.target.value as TaskStatus })}
-                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
+                className={modalInputClass}
               >
                 <option value={TaskStatus.PENDING}>Pending</option>
                 <option value={TaskStatus.SUBMITTED}>Submitted</option>
@@ -979,38 +1051,38 @@ export default function AdminDashboard() {
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Admin Feedback</label>
+              <label className={modalLabelClass}>Admin Feedback</label>
               <textarea 
                 rows={2}
                 value={editingTask.admin_feedback || ""}
                 onChange={e => setEditingTask({ ...editingTask, admin_feedback: e.target.value })}
-                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm resize-none"
+                className={`${modalInputClass} resize-none`}
                 placeholder="Provide feedback for rejection or approval..."
               />
             </div>
-            <button type="submit" className="w-full bg-stone-900 text-stone-50 py-2.5 rounded-lg font-medium hover:bg-stone-800 transition-all">
+            <button type="submit" className={isDark ? "w-full bg-[linear-gradient(135deg,#06b6d4,#8b5cf6)] text-white py-2.5 rounded-lg font-medium hover:opacity-95 transition-all" : "w-full bg-stone-900 text-stone-50 py-2.5 rounded-lg font-medium hover:bg-stone-800 transition-all"}>
               Save Changes
             </button>
           </form>
         </Modal>
       )}
       {viewingSubmissions && (
-        <Modal title={`Review Submissions: ${viewingSubmissions.task.title}`} onClose={closeReviewModal}>
+        <Modal title={`Review Submissions: ${viewingSubmissions.task.title}`} onClose={closeReviewModal} dark={isDark}>
           <div className="space-y-6">
             <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
               {viewingSubmissions.submissions.map((sub) => (
-                <div key={sub.id} className="p-4 bg-stone-50 rounded-xl border border-stone-100 space-y-3">
+                <div key={sub.id} className={modalPanelClass}>
                   <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-stone-400 uppercase tracking-widest">Submitted by {sub.user_name}</span>
-                    <span className="text-[10px] text-stone-400">{new Date(sub.submitted_at).toLocaleString()}</span>
+                    <span className={`text-xs font-bold uppercase tracking-widest ${isDark ? "text-slate-500" : "text-stone-400"}`}>Submitted by {sub.user_name}</span>
+                    <span className={`text-[10px] ${isDark ? "text-slate-500" : "text-stone-400"}`}>{new Date(sub.submitted_at).toLocaleString()}</span>
                   </div>
-                  <p className="text-sm text-stone-700 whitespace-pre-wrap">{sub.content}</p>
+                  <p className={`text-sm whitespace-pre-wrap ${isDark ? "text-slate-300" : "text-stone-700"}`}>{sub.content}</p>
                   {sub.document_url && (
                     <a 
                       href={sub.document_url} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:underline"
+                      className={isDark ? "inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-300 hover:underline" : "inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:underline"}
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
                       View Attached Document
@@ -1024,7 +1096,7 @@ export default function AdminDashboard() {
                           href={file.file_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="block text-xs text-blue-600 hover:underline"
+                          className={isDark ? "block text-xs text-cyan-300 hover:underline" : "block text-xs text-blue-600 hover:underline"}
                         >
                           {file.original_name}
                         </a>
@@ -1034,18 +1106,18 @@ export default function AdminDashboard() {
                 </div>
               ))}
               {viewingSubmissions.submissions.length === 0 && (
-                <div className="text-center py-8 text-stone-400 italic">No submissions found.</div>
+                <div className={`text-center py-8 italic ${isDark ? "text-slate-500" : "text-stone-400"}`}>No submissions found.</div>
               )}
             </div>
 
-            <div className="space-y-3 pt-4 border-t border-stone-100">
+            <div className={`space-y-3 pt-4 border-t ${isDark ? "border-white/10" : "border-stone-100"}`}>
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">Discussion</p>
+                <p className={modalLabelClass}>Discussion</p>
                 {replyTo && (
                   <button
                     type="button"
                     onClick={() => setReplyTo(null)}
-                    className="text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-stone-700"
+                    className={isDark ? "text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-slate-200" : "text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-stone-700"}
                   >
                     Cancel Reply
                   </button>
@@ -1053,26 +1125,26 @@ export default function AdminDashboard() {
               </div>
               <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
                 {isLoadingComments && (
-                  <p className="text-xs text-stone-400">Loading comments...</p>
+                  <p className={`text-xs ${isDark ? "text-slate-500" : "text-stone-400"}`}>Loading comments...</p>
                 )}
                 {!isLoadingComments && comments.length === 0 && (
-                  <p className="text-xs text-stone-400 italic">No comments yet.</p>
+                  <p className={`text-xs italic ${isDark ? "text-slate-500" : "text-stone-400"}`}>No comments yet.</p>
                 )}
                 {comments.map((comment) => (
                   <div
                     key={comment.id}
                     style={{ marginLeft: commentDepth(comment) * 16 }}
-                    className="border border-stone-100 bg-stone-50 rounded-lg px-3 py-2"
+                    className={isDark ? "border border-white/10 bg-white/[0.04] rounded-lg px-3 py-2" : "border border-stone-100 bg-stone-50 rounded-lg px-3 py-2"}
                   >
-                    <div className="flex items-center justify-between text-[10px] text-stone-400 uppercase tracking-widest">
+                    <div className={`flex items-center justify-between text-[10px] uppercase tracking-widest ${isDark ? "text-slate-500" : "text-stone-400"}`}>
                       <span>{comment.user_name} · {comment.user_role}</span>
                       <span>{new Date(comment.created_at).toLocaleString()}</span>
                     </div>
-                    <p className="text-xs text-stone-700 mt-1 whitespace-pre-wrap">{comment.content}</p>
+                    <p className={`text-xs mt-1 whitespace-pre-wrap ${isDark ? "text-slate-300" : "text-stone-700"}`}>{comment.content}</p>
                     <button
                       type="button"
                       onClick={() => setReplyTo(comment)}
-                      className="mt-2 text-[10px] font-semibold uppercase tracking-widest text-stone-500 hover:text-stone-800"
+                      className={isDark ? "mt-2 text-[10px] font-semibold uppercase tracking-widest text-cyan-300 hover:text-cyan-100" : "mt-2 text-[10px] font-semibold uppercase tracking-widest text-stone-500 hover:text-stone-800"}
                     >
                       Reply
                     </button>
@@ -1080,7 +1152,7 @@ export default function AdminDashboard() {
                 ))}
               </div>
               {replyTo && (
-                <div className="text-[10px] text-stone-400 uppercase tracking-widest">
+                <div className={`text-[10px] uppercase tracking-widest ${isDark ? "text-slate-500" : "text-stone-400"}`}>
                   Replying to {replyTo.user_name}
                 </div>
               )}
@@ -1089,26 +1161,26 @@ export default function AdminDashboard() {
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
                 placeholder="Add a comment or reply..."
-                className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm resize-none"
+                className={`${modalInputClass} resize-none`}
               />
               <div className="flex justify-end">
                 <button
                   type="button"
                   onClick={handlePostComment}
-                  className="px-4 py-2 bg-stone-900 text-stone-50 rounded-lg text-xs font-semibold uppercase tracking-widest hover:bg-stone-800"
+                  className={isDark ? "px-4 py-2 bg-[linear-gradient(135deg,#06b6d4,#8b5cf6)] text-white rounded-lg text-xs font-semibold uppercase tracking-widest hover:opacity-95" : "px-4 py-2 bg-stone-900 text-stone-50 rounded-lg text-xs font-semibold uppercase tracking-widest hover:bg-stone-800"}
                 >
                   Post Comment
                 </button>
               </div>
             </div>
             
-            <div className="space-y-4 pt-4 border-t border-stone-100">
+            <div className={`space-y-4 pt-4 border-t ${isDark ? "border-white/10" : "border-stone-100"}`}>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Admin Feedback</label>
+                <label className={modalLabelClass}>Admin Feedback</label>
                 <textarea 
                   id="review-feedback"
                   rows={2}
-                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm resize-none"
+                  className={`${modalInputClass} resize-none`}
                   placeholder="Reason for approval or rejection..."
                 />
               </div>
@@ -1118,7 +1190,7 @@ export default function AdminDashboard() {
                     const feedback = (document.getElementById("review-feedback") as HTMLTextAreaElement).value;
                     handleRejectTask(viewingSubmissions.task, feedback);
                   }}
-                  className="py-2.5 rounded-lg font-bold text-xs uppercase tracking-widest border border-red-200 text-red-600 hover:bg-red-50 transition-all flex items-center justify-center gap-2"
+                  className={isDark ? "py-2.5 rounded-lg font-bold text-xs uppercase tracking-widest border border-rose-400/20 text-rose-200 hover:bg-rose-400/10 transition-all flex items-center justify-center gap-2" : "py-2.5 rounded-lg font-bold text-xs uppercase tracking-widest border border-red-200 text-red-600 hover:bg-red-50 transition-all flex items-center justify-center gap-2"}
                 >
                   <XCircle className="w-4 h-4" />
                   Reject
@@ -1128,7 +1200,7 @@ export default function AdminDashboard() {
                     const feedback = (document.getElementById("review-feedback") as HTMLTextAreaElement).value;
                     handleApproveTask({ ...viewingSubmissions.task, admin_feedback: feedback });
                   }}
-                  className="py-2.5 rounded-lg font-bold text-xs uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 shadow-sm"
+                  className={isDark ? "py-2.5 rounded-lg font-bold text-xs uppercase tracking-widest bg-[linear-gradient(135deg,#10b981,#06b6d4)] text-white hover:opacity-95 transition-all flex items-center justify-center gap-2 shadow-sm" : "py-2.5 rounded-lg font-bold text-xs uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 shadow-sm"}
                 >
                   <CheckCircle className="w-4 h-4" />
                   Approve
@@ -1155,7 +1227,8 @@ function AdminProfileSection({
   onUploadPhoto,
   onChangePassword,
   onLogout,
-  onDeactivate
+  onDeactivate,
+  dark
 }: {
   adminUser: User | null;
   settingsForm: UserSettingsUpdate;
@@ -1170,6 +1243,7 @@ function AdminProfileSection({
   onChangePassword: () => void;
   onLogout: () => void;
   onDeactivate: () => void;
+  dark: boolean;
 }) {
   const permissions = [
     "Manage tasks and reviews",
@@ -1179,9 +1253,15 @@ function AdminProfileSection({
   ];
 
   const securityLabel = settingsForm.two_factor_enabled ? "Hardened" : "2FA required";
-  const cardShellClass = "rounded-[1.5rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,252,0.92)_100%)] shadow-[0_22px_65px_rgba(15,23,42,0.12)] backdrop-blur-xl";
-  const panelClass = "rounded-2xl border border-slate-200/80 bg-white/78 shadow-[0_10px_30px_rgba(15,23,42,0.06)]";
-  const softPanelClass = "rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(248,250,252,0.88)_100%)] shadow-[0_10px_24px_rgba(15,23,42,0.05)]";
+  const cardShellClass = dark
+    ? "rounded-[1.5rem] border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.92)_0%,rgba(2,6,23,0.94)_100%)] shadow-[0_22px_65px_rgba(8,15,30,0.34)] backdrop-blur-xl"
+    : "rounded-[1.5rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,252,0.92)_100%)] shadow-[0_22px_65px_rgba(15,23,42,0.12)] backdrop-blur-xl";
+  const panelClass = dark
+    ? "rounded-2xl border border-white/10 bg-slate-950/55 shadow-[0_10px_30px_rgba(8,15,30,0.22)]"
+    : "rounded-2xl border border-slate-200/80 bg-white/78 shadow-[0_10px_30px_rgba(15,23,42,0.06)]";
+  const softPanelClass = dark
+    ? "rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.82)_0%,rgba(2,6,23,0.86)_100%)] shadow-[0_10px_24px_rgba(8,15,30,0.2)]"
+    : "rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(248,250,252,0.88)_100%)] shadow-[0_10px_24px_rgba(15,23,42,0.05)]";
 
   return (
     <div className="space-y-8">
@@ -1221,12 +1301,12 @@ function AdminProfileSection({
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2 space-y-6">
           <div className={cardShellClass}>
-            <div className="px-6 py-5 border-b border-slate-200/70 flex items-center justify-between">
+            <div className={`px-6 py-5 border-b flex items-center justify-between ${dark ? "border-white/10" : "border-slate-200/70"}`}>
               <div>
                 <p className="text-xs uppercase tracking-[0.3em] text-sky-500">Basic Information</p>
-                <h3 className="text-lg font-semibold text-slate-900">Identity & profile</h3>
+                <h3 className={`text-lg font-semibold ${dark ? "text-slate-100" : "text-slate-900"}`}>Identity & profile</h3>
               </div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Admin</span>
+              <span className={`text-xs font-semibold uppercase tracking-wider ${dark ? "text-slate-500" : "text-slate-400"}`}>Admin</span>
             </div>
             <div className="p-6 space-y-6">
               <div className={`flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between ${softPanelClass}`}>
@@ -1235,7 +1315,7 @@ function AdminProfileSection({
                     <img
                       src={settingsForm.profile_photo_url}
                       alt={settingsForm.name || "Admin profile"}
-                      className="w-14 h-14 rounded-2xl object-cover border border-slate-200"
+                      className={`w-14 h-14 rounded-2xl object-cover border ${dark ? "border-white/10" : "border-slate-200"}`}
                     />
                   ) : (
                     <div className="w-14 h-14 rounded-2xl bg-[linear-gradient(135deg,#ec4899,#8b5cf6)] text-stone-50 flex items-center justify-center text-lg font-semibold">
@@ -1243,11 +1323,11 @@ function AdminProfileSection({
                     </div>
                   )}
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">Profile photo</p>
-                    <p className="text-xs text-slate-500">Upload a square image to personalize your admin account.</p>
+                    <p className={`text-sm font-semibold ${dark ? "text-slate-100" : "text-slate-900"}`}>Profile photo</p>
+                    <p className={`text-xs ${dark ? "text-slate-400" : "text-slate-500"}`}>Upload a square image to personalize your admin account.</p>
                   </div>
                 </div>
-                <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all hover:-translate-y-0.5 hover:border-sky-300 hover:text-slate-900 hover:shadow-[0_12px_24px_rgba(14,165,233,0.14)]">
+                <label className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-all hover:-translate-y-0.5 ${dark ? "border-white/10 bg-slate-950/65 text-slate-200 hover:border-cyan-300/40 hover:text-white hover:shadow-[0_12px_24px_rgba(6,182,212,0.14)]" : "border-slate-200 bg-white text-slate-700 hover:border-sky-300 hover:text-slate-900 hover:shadow-[0_12px_24px_rgba(14,165,233,0.14)]"}`}>
                   <Upload className="w-4 h-4" />
                   {isUploadingPhoto ? "Uploading..." : "Upload photo"}
                   <input
@@ -1267,14 +1347,14 @@ function AdminProfileSection({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <ProfileField label="Name" value={settingsForm.name} onChange={(value) => setSettingsForm({ ...settingsForm, name: value })} />
-                <ProfileField label="Email" type="email" value={settingsForm.email} onChange={(value) => setSettingsForm({ ...settingsForm, email: value })} />
-                <ProfileField label="Phone" type="tel" value={settingsForm.phone || ""} onChange={(value) => setSettingsForm({ ...settingsForm, phone: value })} />
-                <ProfileField label="Profile photo URL" value={settingsForm.profile_photo_url || ""} onChange={(value) => setSettingsForm({ ...settingsForm, profile_photo_url: value })} />
+                <ProfileField label="Name" value={settingsForm.name} onChange={(value) => setSettingsForm({ ...settingsForm, name: value })} dark={dark} />
+                <ProfileField label="Email" type="email" value={settingsForm.email} onChange={(value) => setSettingsForm({ ...settingsForm, email: value })} dark={dark} />
+                <ProfileField label="Phone" type="tel" value={settingsForm.phone || ""} onChange={(value) => setSettingsForm({ ...settingsForm, phone: value })} dark={dark} />
+                <ProfileField label="Profile photo URL" value={settingsForm.profile_photo_url || ""} onChange={(value) => setSettingsForm({ ...settingsForm, profile_photo_url: value })} dark={dark} />
               </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <p className="text-xs text-slate-500">{settingsStatus || "Changes apply immediately after you save them."}</p>
+                <p className={`text-xs ${dark ? "text-slate-400" : "text-slate-500"}`}>{settingsStatus || "Changes apply immediately after you save them."}</p>
                 <button
                   type="button"
                   onClick={onSaveSettings}
@@ -1287,9 +1367,9 @@ function AdminProfileSection({
           </div>
 
           <div className={cardShellClass}>
-            <div className="px-6 py-5 border-b border-slate-200/70">
+            <div className={`px-6 py-5 border-b ${dark ? "border-white/10" : "border-slate-200/70"}`}>
               <p className="text-xs uppercase tracking-[0.3em] text-pink-500">Preferences</p>
-              <h3 className="text-lg font-semibold text-slate-900">Notification routing</h3>
+              <h3 className={`text-lg font-semibold ${dark ? "text-slate-100" : "text-slate-900"}`}>Notification routing</h3>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
               <ToggleCard
@@ -1297,39 +1377,43 @@ function AdminProfileSection({
                 description="Get admin notices by email."
                 checked={settingsForm.notifications.email}
                 onChange={(checked) => setSettingsForm({ ...settingsForm, notifications: { ...settingsForm.notifications, email: checked } })}
+                dark={dark}
               />
               <ToggleCard
                 title="In-app delivery"
                 description="Surface alerts inside the dashboard."
                 checked={settingsForm.notifications.in_app}
                 onChange={(checked) => setSettingsForm({ ...settingsForm, notifications: { ...settingsForm.notifications, in_app: checked } })}
+                dark={dark}
               />
               <ToggleCard
                 title="System alerts"
                 description="Notify me about platform and security events."
                 checked={settingsForm.notifications.system_alerts ?? true}
                 onChange={(checked) => setSettingsForm({ ...settingsForm, notifications: { ...settingsForm.notifications, system_alerts: checked } })}
+                dark={dark}
               />
               <ToggleCard
                 title="User activity alerts"
                 description="Track submissions, approvals, and user changes."
                 checked={settingsForm.notifications.user_activity_alerts ?? true}
                 onChange={(checked) => setSettingsForm({ ...settingsForm, notifications: { ...settingsForm.notifications, user_activity_alerts: checked } })}
+                dark={dark}
               />
             </div>
           </div>
 
           <div className={`overflow-hidden ${cardShellClass}`}>
-            <div className="flex items-center justify-between border-b border-slate-200/70 px-6 py-4">
+            <div className={`flex items-center justify-between border-b px-6 py-4 ${dark ? "border-white/10" : "border-slate-200/70"}`}>
               <div>
                 <p className="text-xs uppercase tracking-[0.3em] text-violet-500">Security Logs</p>
-                <h3 className="font-bold text-slate-900">Login Activity</h3>
+                <h3 className={`font-bold ${dark ? "text-slate-100" : "text-slate-900"}`}>Login Activity</h3>
               </div>
-              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">{adminActivityLogs.length} Logs</span>
+              <span className={`text-xs font-medium uppercase tracking-wider ${dark ? "text-slate-500" : "text-slate-400"}`}>{adminActivityLogs.length} Logs</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-[linear-gradient(90deg,rgba(244,114,182,0.08),rgba(99,102,241,0.08))] text-xs uppercase tracking-wider text-slate-500">
+                <thead className={dark ? "bg-white/[0.04] text-xs uppercase tracking-wider text-slate-400" : "bg-[linear-gradient(90deg,rgba(244,114,182,0.08),rgba(99,102,241,0.08))] text-xs uppercase tracking-wider text-slate-500"}>
                   <tr>
                     <th className="text-left px-6 py-3">Action</th>
                     <th className="text-left px-6 py-3">Time</th>
@@ -1337,16 +1421,16 @@ function AdminProfileSection({
                 </thead>
                 <tbody className="p-4 space-y-4">
                   {adminActivityLogs.slice(0, 8).map((log) => (
-                    <tr key={log.id} className="transition-colors hover:bg-violet-50/50">
-                      <td className="px-6 py-3 text-slate-700">{log.action}</td>
-                      <td className="px-6 py-3 text-slate-600">
+                    <tr key={log.id} className={`transition-colors ${dark ? "hover:bg-white/[0.03]" : "hover:bg-violet-50/50"}`}>
+                      <td className={`px-6 py-3 ${dark ? "text-slate-200" : "text-slate-700"}`}>{log.action}</td>
+                      <td className={`px-6 py-3 ${dark ? "text-slate-400" : "text-slate-600"}`}>
                         {log.created_at ? new Date(log.created_at).toLocaleString() : "-"}
                       </td>
                     </tr>
                   ))}
                   {adminActivityLogs.length === 0 && (
                     <tr>
-                        <td colSpan={2} className="px-6 py-10 text-center text-slate-400 italic">
+                        <td colSpan={2} className={`px-6 py-10 text-center italic ${dark ? "text-slate-500" : "text-slate-400"}`}>
                         No activity logs yet.
                       </td>
                     </tr>
@@ -1359,17 +1443,17 @@ function AdminProfileSection({
 
         <div className="space-y-6">
           <div className={cardShellClass}>
-            <div className="px-6 py-5 border-b border-slate-200/70">
+            <div className={`px-6 py-5 border-b ${dark ? "border-white/10" : "border-slate-200/70"}`}>
               <p className="text-xs uppercase tracking-[0.3em] text-sky-500">Security</p>
-              <h3 className="text-lg font-semibold text-slate-900">Admin safeguards</h3>
+              <h3 className={`text-lg font-semibold ${dark ? "text-slate-100" : "text-slate-900"}`}>Admin safeguards</h3>
             </div>
             <div className="p-6 space-y-4">
               <div className={`flex items-center justify-between px-4 py-3 ${softPanelClass}`}>
                 <div className="flex items-start gap-3">
                   <ShieldCheck className="mt-0.5 h-5 w-5 text-violet-600" />
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">Two-factor authentication</p>
-                    <p className="text-xs text-slate-500">Recommended for every admin account and saved with your profile.</p>
+                    <p className={`text-sm font-semibold ${dark ? "text-slate-100" : "text-slate-900"}`}>Two-factor authentication</p>
+                    <p className={`text-xs ${dark ? "text-slate-400" : "text-slate-500"}`}>Recommended for every admin account and saved with your profile.</p>
                   </div>
                 </div>
                 <input
@@ -1381,8 +1465,8 @@ function AdminProfileSection({
               </div>
               <div className={`${panelClass} px-4 py-4 space-y-3`}>
                 <div>
-                  <p className="text-sm font-semibold text-slate-800">Change password</p>
-                  <p className="text-xs text-slate-500">Rotate your password regularly and after sensitive access changes.</p>
+                  <p className={`text-sm font-semibold ${dark ? "text-slate-100" : "text-slate-800"}`}>Change password</p>
+                  <p className={`text-xs ${dark ? "text-slate-400" : "text-slate-500"}`}>Rotate your password regularly and after sensitive access changes.</p>
                 </div>
                 <button
                   type="button"
@@ -1396,42 +1480,42 @@ function AdminProfileSection({
           </div>
 
           <div className={cardShellClass}>
-            <div className="px-6 py-5 border-b border-slate-200/70">
+            <div className={`px-6 py-5 border-b ${dark ? "border-white/10" : "border-slate-200/70"}`}>
               <p className="text-xs uppercase tracking-[0.3em] text-amber-500">Recent Logins</p>
-              <h3 className="text-lg font-semibold text-slate-900">Session visibility</h3>
+              <h3 className={`text-lg font-semibold ${dark ? "text-slate-100" : "text-slate-900"}`}>Session visibility</h3>
             </div>
             <div className="p-6 space-y-3">
               {adminSessions.slice(0, 5).map((session) => (
-                <div key={session.id} className={`${panelClass} px-4 py-3 text-xs text-slate-600`}>
+                <div key={session.id} className={`${panelClass} px-4 py-3 text-xs ${dark ? "text-slate-400" : "text-slate-600"}`}>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="font-semibold text-slate-700">{session.status === "active" ? "Active session" : "Signed out"}</span>
+                    <span className={`font-semibold ${dark ? "text-slate-200" : "text-slate-700"}`}>{session.status === "active" ? "Active session" : "Signed out"}</span>
                     <span>{session.last_activity_at ? new Date(session.last_activity_at).toLocaleString() : "-"}</span>
                   </div>
-                  <p className="mt-1 text-[11px] text-slate-500">{session.ip_address || "IP unavailable"} · {session.user_agent || "Browser unavailable"}</p>
+                  <p className={`mt-1 text-[11px] ${dark ? "text-slate-500" : "text-slate-500"}`}>{session.ip_address || "IP unavailable"} · {session.user_agent || "Browser unavailable"}</p>
                 </div>
               ))}
               {adminSessions.length === 0 && (
-                <p className="text-xs text-slate-400">No session data available.</p>
+                <p className={`text-xs ${dark ? "text-slate-500" : "text-slate-400"}`}>No session data available.</p>
               )}
             </div>
           </div>
 
           <div className={cardShellClass}>
-            <div className="px-6 py-5 border-b border-slate-200/70">
+            <div className={`px-6 py-5 border-b ${dark ? "border-white/10" : "border-slate-200/70"}`}>
               <p className="text-xs uppercase tracking-[0.3em] text-pink-500">Admin Controls</p>
-              <h3 className="text-lg font-semibold text-slate-900">Role & permissions</h3>
+              <h3 className={`text-lg font-semibold ${dark ? "text-slate-100" : "text-slate-900"}`}>Role & permissions</h3>
             </div>
             <div className="p-6 space-y-4">
               <div className={`${panelClass} px-4 py-4`}>
-                <p className="text-xs uppercase tracking-widest text-slate-400">Manage own role</p>
-                <p className="mt-2 text-sm font-semibold text-slate-900">{adminUser?.role || "admin"}</p>
-                <p className="mt-1 text-xs text-slate-500">Role changes should be confirmed by another admin or directory owner.</p>
+                <p className={`text-xs uppercase tracking-widest ${dark ? "text-slate-500" : "text-slate-400"}`}>Manage own role</p>
+                <p className={`mt-2 text-sm font-semibold ${dark ? "text-slate-100" : "text-slate-900"}`}>{adminUser?.role || "admin"}</p>
+                <p className={`mt-1 text-xs ${dark ? "text-slate-400" : "text-slate-500"}`}>Role changes should be confirmed by another admin or directory owner.</p>
               </div>
               <div className={`${panelClass} px-4 py-4`}>
-                <p className="text-xs uppercase tracking-widest text-slate-400">View permissions assigned</p>
+                <p className={`text-xs uppercase tracking-widest ${dark ? "text-slate-500" : "text-slate-400"}`}>View permissions assigned</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {permissions.map((permission) => (
-                    <span key={permission} className="rounded-full border border-sky-200/80 bg-sky-50/90 px-3 py-1 text-[11px] font-medium text-sky-700 shadow-[0_6px_14px_rgba(14,165,233,0.08)]">
+                    <span key={permission} className={dark ? "rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-medium text-cyan-200 shadow-[0_6px_14px_rgba(6,182,212,0.08)]" : "rounded-full border border-sky-200/80 bg-sky-50/90 px-3 py-1 text-[11px] font-medium text-sky-700 shadow-[0_6px_14px_rgba(14,165,233,0.08)]"}>
                       {permission}
                     </span>
                   ))}
@@ -1441,15 +1525,15 @@ function AdminProfileSection({
           </div>
 
           <div className={cardShellClass}>
-            <div className="px-6 py-5 border-b border-slate-200/70">
+            <div className={`px-6 py-5 border-b ${dark ? "border-white/10" : "border-slate-200/70"}`}>
               <p className="text-xs uppercase tracking-[0.3em] text-rose-500">Account Actions</p>
-              <h3 className="text-lg font-semibold text-slate-900">Session & account controls</h3>
+              <h3 className={`text-lg font-semibold ${dark ? "text-slate-100" : "text-slate-900"}`}>Session & account controls</h3>
             </div>
             <div className="p-6 space-y-3">
               <button
                 type="button"
                 onClick={onLogout}
-                className="w-full flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-all hover:-translate-y-0.5 hover:border-sky-300 hover:text-slate-900 hover:shadow-[0_12px_24px_rgba(14,165,233,0.12)]"
+                className={dark ? "w-full flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-slate-950/65 px-4 py-2.5 text-sm font-semibold text-slate-200 transition-all hover:-translate-y-0.5 hover:border-cyan-300/40 hover:text-white hover:shadow-[0_12px_24px_rgba(14,165,233,0.12)]" : "w-full flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-all hover:-translate-y-0.5 hover:border-sky-300 hover:text-slate-900 hover:shadow-[0_12px_24px_rgba(14,165,233,0.12)]"}
               >
                 <LogOut className="w-4 h-4" />
                 Logout
@@ -1462,7 +1546,7 @@ function AdminProfileSection({
                 <Power className="w-4 h-4" />
                 Deactivate own account
               </button>
-              <p className="text-xs text-slate-400">{accountActionStatus || "Deactivation signs you out immediately and should only be used when another admin can restore access if needed."}</p>
+              <p className={`text-xs ${dark ? "text-slate-500" : "text-slate-400"}`}>{accountActionStatus || "Deactivation signs you out immediately and should only be used when another admin can restore access if needed."}</p>
             </div>
           </div>
         </div>
@@ -1475,21 +1559,23 @@ function ProfileField({
   label,
   value,
   onChange,
-  type = "text"
+  type = "text",
+  dark = false
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
+  dark?: boolean;
 }) {
   return (
     <div>
-      <label className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{label}</label>
+      <label className={`text-xs font-semibold uppercase tracking-[0.24em] ${dark ? "text-slate-500" : "text-slate-400"}`}>{label}</label>
       <input
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-1 w-full rounded-xl border border-slate-200 bg-white/95 px-4 py-3 text-sm text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.04)] transition-all placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-300"
+        className={dark ? "mt-1 w-full rounded-xl border border-white/10 bg-slate-950/65 px-4 py-3 text-sm text-slate-100 shadow-[0_6px_16px_rgba(8,15,30,0.18)] transition-all placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/15 focus:border-cyan-300" : "mt-1 w-full rounded-xl border border-slate-200 bg-white/95 px-4 py-3 text-sm text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.04)] transition-all placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-300"}
       />
     </div>
   );
@@ -1499,18 +1585,20 @@ function ToggleCard({
   title,
   description,
   checked,
-  onChange
+  onChange,
+  dark = false
 }: {
   title: string;
   description: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
+  dark?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(248,250,252,0.88)_100%)] px-4 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_30px_rgba(15,23,42,0.08)]">
+    <div className={dark ? "flex items-center justify-between rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.82)_0%,rgba(2,6,23,0.86)_100%)] px-4 py-4 shadow-[0_10px_24px_rgba(8,15,30,0.18)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_30px_rgba(8,15,30,0.24)]" : "flex items-center justify-between rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(248,250,252,0.88)_100%)] px-4 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_30px_rgba(15,23,42,0.08)]"}>
       <div>
-        <p className="text-sm font-semibold text-slate-900">{title}</p>
-        <p className="text-xs text-slate-500">{description}</p>
+        <p className={`text-sm font-semibold ${dark ? "text-slate-100" : "text-slate-900"}`}>{title}</p>
+        <p className={`text-xs ${dark ? "text-slate-400" : "text-slate-500"}`}>{description}</p>
       </div>
       <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500" />
     </div>
@@ -1534,28 +1622,28 @@ function StatCard({
   );
 }
 
-function AnalyticsCard({ label, value, icon, color }: { label: string, value: string | number, icon: React.ReactNode, color: string }) {
+function AnalyticsCard({ label, value, icon, color, dark = false }: { label: string, value: string | number, icon: React.ReactNode, color: string, dark?: boolean }) {
   return (
-    <div className={`rounded-[1.5rem] border border-white/10 p-6 shadow-[0_18px_55px_rgba(15,23,42,0.1)] backdrop-blur-xl transition-all hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(15,23,42,0.14)] ${color}`}>
+    <div className={dark ? "rounded-[1.5rem] border border-white/10 bg-slate-900/70 p-6 shadow-[0_18px_55px_rgba(8,15,30,0.32)] backdrop-blur-xl transition-all hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(8,15,30,0.38)]" : `rounded-[1.5rem] border border-white/10 p-6 shadow-[0_18px_55px_rgba(15,23,42,0.1)] backdrop-blur-xl transition-all hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(15,23,42,0.14)] ${color}`}>
       <div className="flex justify-between items-start mb-4">
-        <div className="rounded-xl border border-white/50 bg-white/75 p-2.5 shadow-[0_10px_24px_rgba(15,23,42,0.08)]">
+        <div className={dark ? "rounded-xl border border-white/10 bg-white/6 p-2.5 shadow-[0_10px_24px_rgba(8,15,30,0.18)]" : "rounded-xl border border-white/50 bg-white/75 p-2.5 shadow-[0_10px_24px_rgba(15,23,42,0.08)]"}>
           {icon}
         </div>
       </div>
       <div className="space-y-0.5">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">{label}</p>
-        <p className="text-2xl font-bold tracking-tight text-slate-950">{value}</p>
+        <p className={`text-xs font-semibold uppercase tracking-[0.24em] ${dark ? "text-slate-400" : "text-slate-500"}`}>{label}</p>
+        <p className={`text-2xl font-bold tracking-tight ${dark ? "text-slate-50" : "text-slate-950"}`}>{value}</p>
       </div>
     </div>
   );
 }
 
-function StatusBadge({ status }: { status: TaskStatus }) {
+function StatusBadge({ status, dark = false }: { status: TaskStatus; dark?: boolean }) {
   const styles = {
-    [TaskStatus.PENDING]: "bg-amber-50 text-amber-700 border-amber-100",
-    [TaskStatus.SUBMITTED]: "bg-blue-50 text-blue-700 border-blue-100",
-    [TaskStatus.COMPLETED]: "bg-emerald-50 text-emerald-700 border-emerald-100",
-    [TaskStatus.REJECTED]: "bg-red-50 text-red-700 border-red-100"
+    [TaskStatus.PENDING]: dark ? "bg-amber-500/10 text-amber-200 border-amber-400/20" : "bg-amber-50 text-amber-700 border-amber-100",
+    [TaskStatus.SUBMITTED]: dark ? "bg-blue-500/10 text-blue-200 border-blue-400/20" : "bg-blue-50 text-blue-700 border-blue-100",
+    [TaskStatus.COMPLETED]: dark ? "bg-emerald-500/10 text-emerald-200 border-emerald-400/20" : "bg-emerald-50 text-emerald-700 border-emerald-100",
+    [TaskStatus.REJECTED]: dark ? "bg-red-500/10 text-rose-200 border-rose-400/20" : "bg-red-50 text-red-700 border-red-100"
   };
   return (
     <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest border ${styles[status]}`}>
@@ -1564,10 +1652,10 @@ function StatusBadge({ status }: { status: TaskStatus }) {
   );
 }
 
-function StatusPill({ status }: { status: "active" | "offline" }) {
+function StatusPill({ status, dark = false }: { status: "active" | "offline"; dark?: boolean }) {
   const styles = {
-    active: "bg-emerald-50 text-emerald-700 border-emerald-100",
-    offline: "bg-stone-100 text-stone-600 border-stone-200"
+    active: dark ? "bg-emerald-500/10 text-emerald-200 border-emerald-400/20" : "bg-emerald-50 text-emerald-700 border-emerald-100",
+    offline: dark ? "bg-slate-800 text-slate-300 border-slate-700" : "bg-stone-100 text-stone-600 border-stone-200"
   };
   const labels = {
     active: "Active",
@@ -1581,17 +1669,17 @@ function StatusPill({ status }: { status: "active" | "offline" }) {
 }
 
 
-function Modal({ title, children, onClose }: { title: string, children: React.ReactNode, onClose: () => void }) {
+function Modal({ title, children, onClose, dark = false }: { title: string, children: React.ReactNode, onClose: () => void, dark?: boolean }) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-md">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="max-h-[85vh] w-full max-w-md overflow-hidden rounded-[1.75rem] border border-white/30 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.95)_100%)] shadow-[0_30px_90px_rgba(15,23,42,0.22)]"
+        className={dark ? "max-h-[85vh] w-full max-w-md overflow-hidden rounded-[1.75rem] border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.96)_0%,rgba(2,6,23,0.98)_100%)] shadow-[0_30px_90px_rgba(8,15,30,0.42)]" : "max-h-[85vh] w-full max-w-md overflow-hidden rounded-[1.75rem] border border-white/30 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.95)_100%)] shadow-[0_30px_90px_rgba(15,23,42,0.22)]"}
       >
-        <div className="flex items-center justify-between border-b border-slate-200/80 bg-[linear-gradient(90deg,rgba(14,165,233,0.08),rgba(236,72,153,0.08))] px-6 py-4">
-          <h3 className="font-bold text-slate-900">{title}</h3>
-          <button onClick={onClose} className="text-slate-400 transition-colors hover:text-slate-900">
+        <div className={dark ? "flex items-center justify-between border-b border-white/10 bg-white/[0.04] px-6 py-4" : "flex items-center justify-between border-b border-slate-200/80 bg-[linear-gradient(90deg,rgba(14,165,233,0.08),rgba(236,72,153,0.08))] px-6 py-4"}>
+          <h3 className={`font-bold ${dark ? "text-slate-100" : "text-slate-900"}`}>{title}</h3>
+          <button onClick={onClose} className={`transition-colors ${dark ? "text-slate-500 hover:text-white" : "text-slate-400 hover:text-slate-900"}`}>
             <Plus className="w-5 h-5 rotate-45" />
           </button>
         </div>

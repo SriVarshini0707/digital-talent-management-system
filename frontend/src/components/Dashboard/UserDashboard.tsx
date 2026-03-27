@@ -482,6 +482,18 @@ export default function UserDashboard() {
   const ghostButtonClass = isDark
     ? "w-full md:w-auto rounded-xl border border-white/10 bg-white/6 px-4 py-2 text-sm font-semibold text-slate-300 hover:border-cyan-400/40 hover:bg-white/10 hover:text-white"
     : "w-full md:w-auto px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 border border-slate-200 hover:border-sky-300 hover:bg-sky-50";
+  const modalInputClass = isDark
+    ? "w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/15 focus:border-cyan-300 transition-all"
+    : "w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm";
+  const modalCompactInputClass = isDark
+    ? "w-full rounded-lg border border-white/10 bg-slate-950/70 px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/15 focus:border-cyan-300 transition-all"
+    : "w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm";
+  const modalPanelClass = isDark
+    ? "rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3"
+    : "rounded-xl border border-stone-200 bg-stone-50 px-4 py-3";
+  const modalLabelClass = isDark
+    ? "text-xs font-semibold uppercase tracking-wider text-slate-400"
+    : "text-xs font-semibold uppercase tracking-wider text-stone-500";
 
   return (
     <div className="space-y-8">
@@ -967,14 +979,14 @@ export default function UserDashboard() {
               </div>
               <div className="p-6 space-y-5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <StatusBadge status={viewingTask.status} />
+                  <StatusBadge status={viewingTask.status} dark={isDark} />
                   {getPriorityBadge(viewingTask.priority)}
                   {viewingTask.categories && viewingTask.categories.length > 0 && (
                     <div className="flex flex-wrap gap-2">
                       {viewingTask.categories.map((category) => (
                         <span
                           key={`${viewingTask.id}-${category}-view`}
-                          className="text-[10px] font-semibold uppercase tracking-wider bg-stone-100 text-stone-600 border border-stone-200 px-2 py-1 rounded-full"
+                          className={isDark ? "text-[10px] font-semibold uppercase tracking-wider bg-cyan-400/10 text-cyan-200 border border-cyan-400/20 px-2 py-1 rounded-full" : "text-[10px] font-semibold uppercase tracking-wider bg-stone-100 text-stone-600 border border-stone-200 px-2 py-1 rounded-full"}
                         >
                           #{category}
                         </span>
@@ -983,39 +995,39 @@ export default function UserDashboard() {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">Description</p>
-                  <p className="text-sm text-stone-700 leading-relaxed">{viewingTask.description}</p>
+                  <p className={modalLabelClass}>Description</p>
+                  <p className={`text-sm leading-relaxed ${isDark ? "text-slate-300" : "text-stone-700"}`}>{viewingTask.description}</p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-xs text-stone-600">
-                    <p className="text-[10px] uppercase tracking-widest text-stone-400">Assigned</p>
-                    <p className="font-semibold text-stone-800">{new Date(viewingTask.created_at).toLocaleDateString()}</p>
+                  <div className={`${modalPanelClass} text-xs ${isDark ? "text-slate-400" : "text-stone-600"}`}>
+                    <p className={`text-[10px] uppercase tracking-widest ${isDark ? "text-slate-500" : "text-stone-400"}`}>Assigned</p>
+                    <p className={`font-semibold ${isDark ? "text-slate-100" : "text-stone-800"}`}>{new Date(viewingTask.created_at).toLocaleDateString()}</p>
                   </div>
-                  <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-xs text-stone-600">
-                    <p className="text-[10px] uppercase tracking-widest text-stone-400">Due</p>
-                    <p className="font-semibold text-stone-800">{viewingTask.due_date ? new Date(viewingTask.due_date).toLocaleDateString() : "No due date"}</p>
+                  <div className={`${modalPanelClass} text-xs ${isDark ? "text-slate-400" : "text-stone-600"}`}>
+                    <p className={`text-[10px] uppercase tracking-widest ${isDark ? "text-slate-500" : "text-stone-400"}`}>Due</p>
+                    <p className={`font-semibold ${isDark ? "text-slate-100" : "text-stone-800"}`}>{viewingTask.due_date ? new Date(viewingTask.due_date).toLocaleDateString() : "No due date"}</p>
                   </div>
-                  <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-xs text-stone-600">
-                    <p className="text-[10px] uppercase tracking-widest text-stone-400">Remaining</p>
-                    <p className="font-semibold text-stone-800">{getDaysRemainingLabel(viewingTask.due_date)}</p>
+                  <div className={`${modalPanelClass} text-xs ${isDark ? "text-slate-400" : "text-stone-600"}`}>
+                    <p className={`text-[10px] uppercase tracking-widest ${isDark ? "text-slate-500" : "text-stone-400"}`}>Remaining</p>
+                    <p className={`font-semibold ${isDark ? "text-slate-100" : "text-stone-800"}`}>{getDaysRemainingLabel(viewingTask.due_date)}</p>
                   </div>
                 </div>
                 {viewingTask.admin_feedback && (
-                  <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
-                    <p className="text-[10px] uppercase tracking-widest text-stone-400">Admin Feedback</p>
-                    <p className="text-sm text-stone-700 italic mt-1">"{viewingTask.admin_feedback}"</p>
+                  <div className={modalPanelClass}>
+                    <p className={`text-[10px] uppercase tracking-widest ${isDark ? "text-slate-500" : "text-stone-400"}`}>Admin Feedback</p>
+                    <p className={`text-sm italic mt-1 ${isDark ? "text-slate-300" : "text-stone-700"}`}>"{viewingTask.admin_feedback}"</p>
                   </div>
                 )}
-                <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 space-y-2">
-                  <p className="text-[10px] uppercase tracking-widest text-stone-400">Personal Notes</p>
+                <div className={`${modalPanelClass} space-y-2`}>
+                  <p className={`text-[10px] uppercase tracking-widest ${isDark ? "text-slate-500" : "text-stone-400"}`}>Personal Notes</p>
                   <textarea
                     rows={3}
                     value={notes[viewingTask.id] || ""}
                     onChange={(e) => handleSaveNote(viewingTask.id, e.target.value)}
                     placeholder="Add your private notes for this task..."
-                    className="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 focus:border-stone-300 resize-none"
+                    className={`${modalInputClass} resize-none`}
                   />
-                  <p className="text-[10px] uppercase tracking-widest text-stone-400">Saved locally in your browser.</p>
+                  <p className={`text-[10px] uppercase tracking-widest ${isDark ? "text-slate-500" : "text-stone-400"}`}>Saved locally in your browser.</p>
                 </div>
               </div>
               <div className={`px-6 py-4 flex flex-col sm:flex-row gap-3 sm:justify-end ${isDark ? "border-t border-white/10 bg-white/6" : "border-t border-stone-100 bg-white"}`}>
@@ -1073,49 +1085,49 @@ export default function UserDashboard() {
                 {canSubmit ? (
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Submission Content</label>
+                      <label className={modalLabelClass}>Submission Content</label>
                       <textarea 
                         required
                         rows={6}
                         value={submissionContent}
                         onChange={e => setSubmissionContent(e.target.value)}
                         placeholder="Describe your work or provide links to your deliverables..."
-                        className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm resize-none"
+                        className={`${modalInputClass} resize-none`}
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Document URL (Optional)</label>
+                      <label className={modalLabelClass}>Document URL (Optional)</label>
                       <input 
                         type="url"
                         value={documentUrl}
                         onChange={e => setDocumentUrl(e.target.value)}
                         placeholder="https://docs.google.com/..."
-                        className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm"
+                        className={modalCompactInputClass}
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">Upload Files</label>
+                      <label className={modalLabelClass}>Upload Files</label>
                       <input 
                         type="file"
                         multiple
                         accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.txt,.md,.js,.jsx,.ts,.tsx,.py,.java,.c,.cpp,.go,.rs,.html,.css,.json,.yaml,.yml,.sql,.sh"
                         onChange={(e) => handleUploadFiles(e.target.files)}
-                        className="block w-full text-sm text-stone-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-stone-900 file:text-stone-50 hover:file:bg-stone-800"
+                        className={isDark ? "block w-full text-sm text-slate-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border file:border-cyan-400/20 file:bg-cyan-400/10 file:text-cyan-100 hover:file:bg-cyan-400/15" : "block w-full text-sm text-stone-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-stone-900 file:text-stone-50 hover:file:bg-stone-800"}
                       />
                       {isUploading && (
-                        <p className="text-xs text-stone-400">Uploading files...</p>
+                        <p className={`text-xs ${isDark ? "text-slate-500" : "text-stone-400"}`}>Uploading files...</p>
                       )}
                       {attachments.length > 0 && (
                         <div className="space-y-2">
                           {attachments.map((file, index) => (
-                            <div key={`${file.file_url}-${index}`} className="flex items-center justify-between text-xs text-stone-600 bg-stone-50 border border-stone-200 rounded-lg px-3 py-2">
+                            <div key={`${file.file_url}-${index}`} className={isDark ? "flex items-center justify-between text-xs text-slate-300 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2" : "flex items-center justify-between text-xs text-stone-600 bg-stone-50 border border-stone-200 rounded-lg px-3 py-2"}>
                               <a href={file.file_url} target="_blank" rel="noreferrer" className="hover:underline">
                                 {file.original_name}
                               </a>
                               <button
                                 type="button"
                                 onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))}
-                                className="text-stone-400 hover:text-red-600"
+                                className={isDark ? "text-slate-500 hover:text-rose-300" : "text-stone-400 hover:text-red-600"}
                               >
                                 Remove
                               </button>
@@ -1125,25 +1137,25 @@ export default function UserDashboard() {
                       )}
                     </div>
                     {drafts[submittingTask.id]?.savedAt && (
-                      <p className="text-[10px] uppercase tracking-widest text-stone-400">
+                      <p className={`text-[10px] uppercase tracking-widest ${isDark ? "text-slate-500" : "text-stone-400"}`}>
                         Draft saved at {new Date(drafts[submittingTask.id].savedAt).toLocaleString()}
                       </p>
                     )}
                   </div>
                 ) : (
-                  <div className="text-sm text-stone-500 bg-stone-50 border border-stone-200 rounded-xl px-4 py-3">
+                  <div className={`${modalPanelClass} text-sm ${isDark ? "text-slate-300" : "text-stone-500"}`}>
                     Submissions are locked for this task. You can continue the discussion below.
                   </div>
                 )}
 
-                <div className="space-y-3 pt-4 border-t border-stone-100">
+                <div className={`space-y-3 pt-4 border-t ${isDark ? "border-white/10" : "border-stone-100"}`}>
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">Discussion</p>
+                    <p className={modalLabelClass}>Discussion</p>
                     {replyTo && (
                       <button
                         type="button"
                         onClick={() => setReplyTo(null)}
-                        className="text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-stone-700"
+                        className={isDark ? "text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-slate-200" : "text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-stone-700"}
                       >
                         Cancel Reply
                       </button>
@@ -1151,26 +1163,26 @@ export default function UserDashboard() {
                   </div>
                   <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
                     {isLoadingComments && (
-                      <p className="text-xs text-stone-400">Loading comments...</p>
+                      <p className={`text-xs ${isDark ? "text-slate-500" : "text-stone-400"}`}>Loading comments...</p>
                     )}
                     {!isLoadingComments && comments.length === 0 && (
-                      <p className="text-xs text-stone-400 italic">No comments yet.</p>
+                      <p className={`text-xs italic ${isDark ? "text-slate-500" : "text-stone-400"}`}>No comments yet.</p>
                     )}
                     {comments.map((comment) => (
                       <div
                         key={comment.id}
                         style={{ marginLeft: commentDepth(comment) * 16 }}
-                        className="border border-stone-100 bg-stone-50 rounded-lg px-3 py-2"
+                        className={isDark ? "border border-white/10 bg-white/[0.04] rounded-lg px-3 py-2" : "border border-stone-100 bg-stone-50 rounded-lg px-3 py-2"}
                       >
-                        <div className="flex items-center justify-between text-[10px] text-stone-400 uppercase tracking-widest">
+                        <div className={`flex items-center justify-between text-[10px] uppercase tracking-widest ${isDark ? "text-slate-500" : "text-stone-400"}`}>
                           <span>{comment.user_name} · {comment.user_role}</span>
                           <span>{new Date(comment.created_at).toLocaleString()}</span>
                         </div>
-                        <p className="text-xs text-stone-700 mt-1 whitespace-pre-wrap">{comment.content}</p>
+                        <p className={`text-xs mt-1 whitespace-pre-wrap ${isDark ? "text-slate-300" : "text-stone-700"}`}>{comment.content}</p>
                         <button
                           type="button"
                           onClick={() => setReplyTo(comment)}
-                          className="mt-2 text-[10px] font-semibold uppercase tracking-widest text-stone-500 hover:text-stone-800"
+                          className={isDark ? "mt-2 text-[10px] font-semibold uppercase tracking-widest text-cyan-300 hover:text-cyan-100" : "mt-2 text-[10px] font-semibold uppercase tracking-widest text-stone-500 hover:text-stone-800"}
                         >
                           Reply
                         </button>
@@ -1178,7 +1190,7 @@ export default function UserDashboard() {
                     ))}
                   </div>
                   {replyTo && (
-                    <div className="text-[10px] text-stone-400 uppercase tracking-widest">
+                    <div className={`text-[10px] uppercase tracking-widest ${isDark ? "text-slate-500" : "text-stone-400"}`}>
                       Replying to {replyTo.user_name}
                     </div>
                   )}
@@ -1187,13 +1199,13 @@ export default function UserDashboard() {
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
                     placeholder="Add a comment or reply..."
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/5 focus:border-stone-900 transition-all text-sm resize-none"
+                    className={`${modalCompactInputClass} resize-none`}
                   />
                   <div className="flex justify-end">
                     <button
                       type="button"
                       onClick={handlePostComment}
-                      className="px-4 py-2 bg-stone-900 text-stone-50 rounded-lg text-xs font-semibold uppercase tracking-widest hover:bg-stone-800"
+                      className={isDark ? "px-4 py-2 bg-[linear-gradient(135deg,#06b6d4,#8b5cf6)] text-white rounded-lg text-xs font-semibold uppercase tracking-widest hover:opacity-95" : "px-4 py-2 bg-stone-900 text-stone-50 rounded-lg text-xs font-semibold uppercase tracking-widest hover:bg-stone-800"}
                     >
                       Post Comment
                     </button>
@@ -1205,21 +1217,21 @@ export default function UserDashboard() {
                     <button 
                       type="button"
                       onClick={closeSubmissionModal}
-                      className="flex-1 px-4 py-2.5 border border-stone-200 rounded-lg font-medium text-stone-600 hover:bg-stone-50 transition-all"
+                      className={isDark ? "flex-1 px-4 py-2.5 border border-white/10 rounded-lg font-medium text-slate-300 hover:bg-white/8 transition-all" : "flex-1 px-4 py-2.5 border border-stone-200 rounded-lg font-medium text-stone-600 hover:bg-stone-50 transition-all"}
                     >
                       Cancel
                     </button>
                     <button 
                       type="button"
                       onClick={handleSaveDraft}
-                      className="flex-1 px-4 py-2.5 border border-stone-200 rounded-lg font-medium text-stone-600 hover:bg-stone-50 transition-all"
+                      className={isDark ? "flex-1 px-4 py-2.5 border border-white/10 rounded-lg font-medium text-slate-300 hover:bg-white/8 transition-all" : "flex-1 px-4 py-2.5 border border-stone-200 rounded-lg font-medium text-stone-600 hover:bg-stone-50 transition-all"}
                     >
                       Save Draft
                     </button>
                     <button 
                       type="submit" 
                       disabled={isLoading}
-                      className="flex-[2] bg-stone-900 text-stone-50 py-2.5 rounded-lg font-medium hover:bg-stone-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                      className={isDark ? "flex-[2] bg-[linear-gradient(135deg,#06b6d4,#8b5cf6)] text-white py-2.5 rounded-lg font-medium hover:opacity-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50" : "flex-[2] bg-stone-900 text-stone-50 py-2.5 rounded-lg font-medium hover:bg-stone-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50"}
                     >
                       {isLoading ? "Submitting..." : "Confirm Submission"}
                       <ArrowRight className="w-4 h-4" />
@@ -1230,7 +1242,7 @@ export default function UserDashboard() {
                     <button 
                       type="button"
                       onClick={closeSubmissionModal}
-                      className="px-4 py-2.5 border border-stone-200 rounded-lg font-medium text-stone-600 hover:bg-stone-50 transition-all"
+                      className={isDark ? "px-4 py-2.5 border border-white/10 rounded-lg font-medium text-slate-300 hover:bg-white/8 transition-all" : "px-4 py-2.5 border border-stone-200 rounded-lg font-medium text-stone-600 hover:bg-stone-50 transition-all"}
                     >
                       Close
                     </button>

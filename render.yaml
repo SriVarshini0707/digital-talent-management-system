@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: digital-talent-management-system
+    env: node
+    plan: free
+    buildCommand: cd frontend && npm ci && npm run build && cd ..\\backend && npm ci && npm run build
+    startCommand: cd backend && npm start

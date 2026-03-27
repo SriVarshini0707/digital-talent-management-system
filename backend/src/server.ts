@@ -160,36 +160,52 @@ const TaskComment = mongoose.model("TaskComment", taskCommentSchema);
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
+  const frontendDistDir = path.resolve(process.cwd(), "..", "frontend", "dist");
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+
+  if (process.env.NODE_ENV === "production") {
+    app.set("trust proxy", 1);
+  }
 
   // Database Connection
+  const useInMemoryDb = process.env.USE_IN_MEMORY_DB === "true";
   let mongoUri = process.env.MONGODB_URI;
-  if (!mongoUri) {
-    console.log("No MONGODB_URI provided. Starting in-memory MongoDB...");
+
+  if (!mongoUri && useInMemoryDb) {
+    console.log("USE_IN_MEMORY_DB=true and no MONGODB_URI provided. Starting in-memory MongoDB...");
     const mongoServer = await MongoMemoryServer.create();
     mongoUri = mongoServer.getUri();
+  }
+
+  if (!mongoUri) {
+    throw new Error(
+      "Missing MONGODB_URI. Set it to your MongoDB Atlas connection string, or set USE_IN_MEMORY_DB=true for local temporary data."
+    );
   }
 
   try {
     await mongoose.connect(mongoUri);
     console.log(
       "Connected to MongoDB:",
-      mongoUri.includes("127.0.0.1") ? "In-Memory Instance" : "External Instance"
+      mongoUri.includes("127.0.0.1") ? "Local/In-Memory Instance" : "Atlas/External Instance"
     );
   } catch (err) {
     console.error("MongoDB connection error:", err);
-    if (process.env.MONGODB_URI) {
-      console.log("Falling back to in-memory MongoDB...");
+    if (useInMemoryDb) {
+      console.log("Atlas/external connection failed. Falling back to in-memory MongoDB because USE_IN_MEMORY_DB=true...");
       const mongoServer = await MongoMemoryServer.create();
       await mongoose.connect(mongoServer.getUri());
       console.log("Connected to in-memory MongoDB.");
+    } else {
+      throw err;
     }
   }
 
   app.use(express.json());
   app.use(cookieParser());
   app.use(cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: frontendUrl,
     credentials: true
   }));
 
@@ -826,6 +842,14 @@ async function startServer() {
       res.status(500).json({ error: "Internal server error" });
     }
   });
+
+  if (fs.existsSync(frontendDistDir)) {
+    app.use(express.static(frontendDistDir));
+
+    app.get(/^\/(?!api(?:\/|$)|uploads(?:\/|$)).*/, (_req, res) => {
+      res.sendFile(path.join(frontendDistDir, "index.html"));
+    });
+  }
 
   app.use((err: any, _req: any, res: any, _next: any) => {
     if (err instanceof multer.MulterError) {
