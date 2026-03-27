@@ -1059,12 +1059,12 @@ export default function UserDashboard() {
 
       <AnimatePresence>
         {submittingTask && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/55 backdrop-blur-md">
+          <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-950/55 p-4 backdrop-blur-md">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className={`w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden ${
+              className={`mx-auto my-4 flex max-h-[calc(100vh-2rem)] w-full max-w-xl flex-col rounded-2xl shadow-2xl overflow-hidden ${
                 isDark
                   ? "border border-white/10 bg-[linear-gradient(180deg,rgba(30,41,59,0.96)_0%,rgba(15,23,42,0.98)_100%)]"
                   : "bg-white"
@@ -1081,7 +1081,8 @@ export default function UserDashboard() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <form onSubmit={handleSubmitTask} className="p-6 space-y-6">
+              <form onSubmit={handleSubmitTask} className="flex min-h-0 flex-1 flex-col">
+                <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-6">
                 {canSubmit ? (
                   <div className="space-y-4">
                     <div className="space-y-2">
@@ -1212,8 +1213,10 @@ export default function UserDashboard() {
                   </div>
                 </div>
 
+                </div>
+
                 {canSubmit ? (
-                  <div className="flex gap-3">
+                  <div className={`flex flex-col gap-3 border-t px-6 py-4 sm:flex-row ${isDark ? "border-white/10 bg-white/6" : "border-stone-100 bg-white"}`}>
                     <button 
                       type="button"
                       onClick={closeSubmissionModal}
@@ -1238,7 +1241,7 @@ export default function UserDashboard() {
                     </button>
                   </div>
                 ) : (
-                  <div className="flex justify-end">
+                  <div className={`flex justify-end border-t px-6 py-4 ${isDark ? "border-white/10 bg-white/6" : "border-stone-100 bg-white"}`}>
                     <button 
                       type="button"
                       onClick={closeSubmissionModal}
