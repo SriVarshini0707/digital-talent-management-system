@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowRight, Mail, Lock, Shield, Sparkles, User as UserIcon, UserPlus } from 'lucide-react';
+import { ArrowRight, Mail, Lock, Shield, Sparkles, User as UserIcon, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'motion/react';
 import { UserRole } from '../../types';
 
@@ -8,6 +8,7 @@ export default function Register() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<UserRole>(UserRole.USER);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -78,6 +79,7 @@ export default function Register() {
           </div>
           <h2 className="text-3xl font-bold tracking-tight text-slate-900">Create account</h2>
           <p className="mt-2 text-sm text-slate-500">Join the Digital Talent Management System with the role that fits your work.</p>
+          <p className="mt-2 text-xs text-slate-400">Choose `Talent` if you complete assigned work. Choose `Admin` if you manage tasks and reviews.</p>
         </div>
 
         {error && (
@@ -108,10 +110,20 @@ export default function Register() {
           <Field
             label="Password"
             icon={<Lock className="h-4 w-4" />}
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={setPassword}
             placeholder="Create a strong password"
+            action={(
+              <button
+                type="button"
+                onClick={() => setShowPassword((current) => !current)}
+                className="rounded-lg p-1 text-slate-400 transition hover:text-slate-600"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            )}
           />
 
           <div className="space-y-1.5">
@@ -132,6 +144,7 @@ export default function Register() {
                 onClick={() => setRole(UserRole.ADMIN)}
               />
             </div>
+            <p className="text-xs text-slate-400">You can sign in right after creating the account.</p>
           </div>
 
           <button
@@ -164,6 +177,7 @@ function Field({
   value,
   onChange,
   placeholder,
+  action,
 }: {
   label: string;
   icon: React.ReactNode;
@@ -171,6 +185,7 @@ function Field({
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
+  action?: React.ReactNode;
 }) {
   return (
     <div className="space-y-1.5">
@@ -182,9 +197,10 @@ function Field({
           required
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full rounded-xl border border-sky-100 bg-gradient-to-b from-white to-sky-50/40 py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
+          className={`w-full rounded-xl border border-sky-100 bg-gradient-to-b from-white to-sky-50/40 py-3 pl-10 text-sm text-slate-900 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100 ${action ? 'pr-12' : 'pr-4'}`}
           placeholder={placeholder}
         />
+        {action && <div className="absolute right-3 top-1/2 -translate-y-1/2">{action}</div>}
       </div>
     </div>
   );

@@ -7,7 +7,8 @@ import AdminDashboard from './components/Dashboard/AdminDashboard';
 import UserDashboard from './components/Dashboard/UserDashboard';
 import ChangePassword from './components/Profile/ChangePassword';
 import UserSettings from './components/Profile/UserSettings';
-import { LogOut, LayoutDashboard, User as UserIcon, MoonStar, SunMedium } from 'lucide-react';
+import DirectMessages from './components/Chat/DirectMessages';
+import { LogOut, LayoutDashboard, User as UserIcon, MoonStar, SunMedium, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface AuthContextType {
@@ -120,6 +121,7 @@ export default function App() {
                     </Link>
                     <div className={`hidden md:flex items-center gap-4 text-sm font-medium ${theme === "dark" ? "text-slate-300" : "text-slate-500"}`}>
                       <Link to="/" className={`${theme === "dark" ? "hover:text-cyan-300" : "hover:text-pink-600"} transition-colors`}>Dashboard</Link>
+                      <Link to="/chat" className={`${theme === "dark" ? "hover:text-cyan-300" : "hover:text-pink-600"} transition-colors`}>Chat</Link>
                       {user.role === UserRole.ADMIN && (
                         <span className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-widest ${theme === "dark" ? "bg-cyan-400/15 text-cyan-200 border border-cyan-400/20" : "bg-pink-50 text-pink-700 border border-pink-200"}`}>Admin</span>
                       )}
@@ -139,6 +141,14 @@ export default function App() {
                       {theme === "dark" ? <SunMedium className="h-4 w-4" /> : <MoonStar className="h-4 w-4" />}
                     </button>
                     <Link
+                      to="/chat"
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-colors ${theme === "dark" ? "bg-slate-900/90 border-cyan-400/20 hover:border-cyan-300/50 hover:text-white" : "bg-white/90 border-pink-200 hover:border-pink-400 hover:text-slate-900 shadow-sm shadow-pink-100/70"}`}
+                      aria-label="Open chat"
+                    >
+                      <MessageSquare className={`w-4 h-4 ${theme === "dark" ? "text-cyan-300" : "text-pink-500"}`} />
+                      <span className="text-xs font-medium">Chat</span>
+                    </Link>
+                    <Link
                       to={user.role === UserRole.ADMIN ? "/?section=profile" : "/profile"}
                       className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-colors ${theme === "dark" ? "bg-slate-900/90 border-cyan-400/20 hover:border-cyan-300/50 hover:text-white" : "bg-white/90 border-pink-200 hover:border-pink-400 hover:text-slate-900 shadow-sm shadow-pink-100/70"}`}
                       aria-label="Open profile"
@@ -148,11 +158,42 @@ export default function App() {
                     </Link>
                     <button 
                       onClick={logout}
+                      aria-label="Sign out"
                       className={`p-2 rounded-full transition-all ${theme === "dark" ? "text-slate-300 hover:text-rose-300 hover:bg-rose-400/10" : "text-slate-500 hover:text-rose-600 hover:bg-rose-50"}`}
                     >
                       <LogOut className="w-5 h-5" />
                     </button>
                   </div>
+                </div>
+                <div className={`md:hidden flex flex-wrap items-center gap-2 pb-4 ${theme === "dark" ? "text-slate-300" : "text-slate-600"}`}>
+                  <Link
+                    to="/"
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "border-cyan-400/20 bg-slate-900/80 hover:border-cyan-300/50 hover:text-white" : "border-pink-200 bg-white/90 hover:border-pink-400 hover:text-slate-900"}`}
+                  >
+                    Dashboard
+                  </Link>
+                  <Link
+                    to="/chat"
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "border-cyan-400/20 bg-slate-900/80 hover:border-cyan-300/50 hover:text-white" : "border-pink-200 bg-white/90 hover:border-pink-400 hover:text-slate-900"}`}
+                  >
+                    Chat
+                  </Link>
+                  {user.role !== UserRole.ADMIN && (
+                    <Link
+                      to="/profile"
+                      className={`rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "border-cyan-400/20 bg-slate-900/80 hover:border-cyan-300/50 hover:text-white" : "border-pink-200 bg-white/90 hover:border-pink-400 hover:text-slate-900"}`}
+                    >
+                      Profile
+                    </Link>
+                  )}
+                  {user.role === UserRole.ADMIN && (
+                    <Link
+                      to="/?section=profile"
+                      className={`rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "border-cyan-400/20 bg-slate-900/80 hover:border-cyan-300/50 hover:text-white" : "border-pink-200 bg-white/90 hover:border-pink-400 hover:text-slate-900"}`}
+                    >
+                      Admin Profile
+                    </Link>
+                  )}
                 </div>
               </div>
             </nav>
@@ -176,6 +217,10 @@ export default function App() {
                 <Route 
                   path="/profile/change-password"
                   element={user ? <ChangePassword /> : <Navigate to="/login" />}
+                />
+                <Route
+                  path="/chat"
+                  element={user ? <DirectMessages /> : <Navigate to="/login" />}
                 />
                 <Route 
                   path="/" 

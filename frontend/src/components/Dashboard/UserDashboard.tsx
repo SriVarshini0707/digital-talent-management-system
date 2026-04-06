@@ -245,6 +245,11 @@ export default function UserDashboard() {
     task.status === TaskStatus.PENDING || task.status === TaskStatus.REJECTED
   );
 
+  const hasLongDescription = (description?: string) => {
+    if (!description) return false;
+    return description.length > 180 || description.includes("\n");
+  };
+
   const canSubmit = canSubmitTask(submittingTask);
 
   const getDaysRemainingLabel = (dueDate?: string | null) => {
@@ -466,6 +471,14 @@ export default function UserDashboard() {
     return { total, completed, submitted, pending, rejected, completionRate };
   }, [tasks]);
 
+  const hasActiveFilters = searchQuery.trim() !== "" || statusFilter !== "all" || priorityFilter !== "all" || viewPreset !== "all";
+  const primaryTask = useMemo(() => {
+    return filteredTasks.find((task) => task.status === TaskStatus.REJECTED)
+      || filteredTasks.find((task) => task.status === TaskStatus.PENDING)
+      || filteredTasks.find((task) => task.status === TaskStatus.SUBMITTED)
+      || null;
+  }, [filteredTasks]);
+
   const isDark = theme === "dark";
   const sectionCardClass = isDark
     ? "rounded-[1.5rem] border border-white/10 bg-white/8 shadow-[0_18px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl"
@@ -538,6 +551,50 @@ export default function UserDashboard() {
             {item.label}
           </button>
         ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.25fr_0.75fr]">
+        <div className={`${sectionCardClass} p-5`}>
+          <p className="text-xs uppercase tracking-[0.3em] text-emerald-500">Quick Start</p>
+          <h2 className={`mt-2 text-xl font-semibold ${panelTitleClass}`}>Your next best action</h2>
+          <p className={`mt-2 text-sm ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+            {primaryTask
+              ? `Focus on "${primaryTask.title}" next. ${getDaysRemainingLabel(primaryTask.due_date)} and the current status is ${primaryTask.status}.`
+              : "You do not have any active tasks right now. Check back later or review your progress below."}
+          </p>
+          {primaryTask && (
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <StatusBadge status={primaryTask.status} />
+              {getPriorityBadge(primaryTask.priority)}
+              <button
+                type="button"
+                onClick={() => setViewingTask(primaryTask)}
+                className="rounded-full bg-[linear-gradient(135deg,#0ea5e9,#8b5cf6)] px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition hover:opacity-95"
+              >
+                Open Task
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className={`${sectionCardClass} grid grid-cols-2 gap-3 p-5`}>
+          <div className={softPanelClass + " px-4 py-3"}>
+            <p className={`text-[10px] uppercase tracking-widest ${mutedTextClass}`}>Pending</p>
+            <p className={`mt-1 text-2xl font-bold ${panelTitleClass}`}>{progressStats.pending}</p>
+          </div>
+          <div className={softPanelClass + " px-4 py-3"}>
+            <p className={`text-[10px] uppercase tracking-widest ${mutedTextClass}`}>Submitted</p>
+            <p className={`mt-1 text-2xl font-bold ${panelTitleClass}`}>{progressStats.submitted}</p>
+          </div>
+          <div className={softPanelClass + " px-4 py-3"}>
+            <p className={`text-[10px] uppercase tracking-widest ${mutedTextClass}`}>Needs Fix</p>
+            <p className={`mt-1 text-2xl font-bold ${panelTitleClass}`}>{progressStats.rejected}</p>
+          </div>
+          <div className={softPanelClass + " px-4 py-3"}>
+            <p className={`text-[10px] uppercase tracking-widest ${mutedTextClass}`}>Done</p>
+            <p className={`mt-1 text-2xl font-bold ${panelTitleClass}`}>{progressStats.completed}</p>
+          </div>
+        </div>
       </div>
 
       {activePanel === "tasks" && (
@@ -674,6 +731,15 @@ export default function UserDashboard() {
                   <div className="space-y-2">
                     <h3 className={`font-bold text-xl leading-tight ${panelTitleClass}`}>{task.title}</h3>
                     <p className={`text-sm line-clamp-3 ${isDark ? "text-slate-300" : "text-slate-500"}`}>{task.description}</p>
+                    {hasLongDescription(task.description) && (
+                      <button
+                        type="button"
+                        onClick={() => setViewingTask(task)}
+                        className={`text-xs font-semibold uppercase tracking-widest ${isDark ? "text-cyan-300 hover:text-cyan-200" : "text-sky-600 hover:text-sky-700"}`}
+                      >
+                        Read full description
+                      </button>
+                    )}
                     {drafts[task.id] && (
                       <span className="inline-flex text-[10px] uppercase tracking-widest font-semibold px-2 py-1 rounded-full bg-amber-100 text-amber-700">
                         Draft saved
@@ -789,7 +855,26 @@ export default function UserDashboard() {
               <div className={`col-span-full rounded-[1.5rem] border border-dashed p-12 text-center font-medium italic backdrop-blur-xl ${
                 isDark ? "border-white/15 bg-white/6 text-slate-400" : "border-white/15 bg-white/70 text-slate-400"
               }`}>
-                No tasks match the current filters.
+                <p className="text-base font-semibold not-italic text-slate-500">No tasks match the current view.</p>
+                <p className="mt-2 text-sm not-italic">
+                  {hasActiveFilters
+                    ? "Try clearing your search or filters to see more work."
+                    : "New assignments will appear here as soon as they are created."}
+                </p>
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStatusFilter("all");
+                      setPriorityFilter("all");
+                      setSearchQuery("");
+                      setViewPreset("all");
+                    }}
+                    className="mt-5 rounded-full bg-[linear-gradient(135deg,#ec4899,#8b5cf6)] px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition hover:opacity-95"
+                  >
+                    Reset Filters
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -996,7 +1081,11 @@ export default function UserDashboard() {
                 </div>
                 <div className="space-y-2">
                   <p className={modalLabelClass}>Description</p>
-                  <p className={`text-sm leading-relaxed ${isDark ? "text-slate-300" : "text-stone-700"}`}>{viewingTask.description}</p>
+                  <div className={`${modalPanelClass} max-h-64 overflow-y-auto`}>
+                    <p className={`whitespace-pre-wrap break-words text-sm leading-relaxed ${isDark ? "text-slate-300" : "text-stone-700"}`}>
+                      {viewingTask.description}
+                    </p>
+                  </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className={`${modalPanelClass} text-xs ${isDark ? "text-slate-400" : "text-stone-600"}`}>
@@ -1260,12 +1349,12 @@ export default function UserDashboard() {
   );
 }
 
-function StatusBadge({ status }: { status: TaskStatus }) {
+function StatusBadge({ status, dark = false }: { status: TaskStatus; dark?: boolean }) {
   const styles = {
-    [TaskStatus.PENDING]: "bg-amber-50 text-amber-700 border-amber-100",
-    [TaskStatus.SUBMITTED]: "bg-blue-50 text-blue-700 border-blue-100",
-    [TaskStatus.COMPLETED]: "bg-emerald-50 text-emerald-700 border-emerald-100",
-    [TaskStatus.REJECTED]: "bg-red-50 text-red-700 border-red-100"
+    [TaskStatus.PENDING]: dark ? "bg-amber-500/10 text-amber-200 border-amber-400/20" : "bg-amber-50 text-amber-700 border-amber-100",
+    [TaskStatus.SUBMITTED]: dark ? "bg-blue-500/10 text-blue-200 border-blue-400/20" : "bg-blue-50 text-blue-700 border-blue-100",
+    [TaskStatus.COMPLETED]: dark ? "bg-emerald-500/10 text-emerald-200 border-emerald-400/20" : "bg-emerald-50 text-emerald-700 border-emerald-100",
+    [TaskStatus.REJECTED]: dark ? "bg-red-500/10 text-rose-200 border-rose-400/20" : "bg-red-50 text-red-700 border-red-100"
   };
   return (
     <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest border ${styles[status]}`}>

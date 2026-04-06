@@ -151,12 +151,25 @@ const taskCommentSchema = new mongoose.Schema({
 });
 taskCommentSchema.virtual("id").get(function() { return this._id.toHexString(); });
 
+const directMessageSchema = new mongoose.Schema({
+  sender_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  recipient_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  content: { type: String, required: true },
+  created_at: { type: Date, default: Date.now },
+  read_at: { type: Date, default: null }
+}, {
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+directMessageSchema.virtual("id").get(function() { return this._id.toHexString(); });
+
 const User = mongoose.model("User", userSchema);
 const UserSession = mongoose.model("UserSession", userSessionSchema);
 const ActivityLog = mongoose.model("ActivityLog", activityLogSchema);
 const Task = mongoose.model("Task", taskSchema);
 const Submission = mongoose.model("Submission", submissionSchema);
 const TaskComment = mongoose.model("TaskComment", taskCommentSchema);
+const DirectMessage = mongoose.model("DirectMessage", directMessageSchema);
 
 async function startServer() {
   const app = express();
@@ -310,6 +323,30 @@ async function startServer() {
   const isAdmin = (req: any, res: any, next: any) => {
     if (req.user.role !== "admin") return res.status(403).json({ error: "Forbidden" });
     next();
+  };
+
+  const canDirectMessage = async (currentUser: any, otherUserId: string): Promise<
+    | { ok: true; user: any }
+    | { ok: false; status: number; error: string }
+  > => {
+    if (currentUser.id === otherUserId) {
+      return { ok: false, status: 400, error: "You cannot message yourself." };
+    }
+
+    const otherUser = await User.findById(otherUserId).select("name email role is_active");
+    if (!otherUser || otherUser.is_active === false) {
+      return { ok: false, status: 404, error: "User not found" };
+    }
+
+    const isAllowedPair =
+      (currentUser.role === "admin" && otherUser.role === "user") ||
+      (currentUser.role === "user" && otherUser.role === "admin");
+
+    if (!isAllowedPair) {
+      return { ok: false, status: 403, error: "Messages are only allowed between admins and users." };
+    }
+
+    return { ok: true, user: otherUser };
   };
 
   // --- Auth Routes ---
@@ -778,6 +815,124 @@ async function startServer() {
       res.json(users);
     } catch (err) {
       res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get("/api/chat/contacts", authenticate, async (req: any, res) => {
+    try {
+      const users = await User.find({})
+        .select("name email role profile_photo_url")
+        .sort({ name: 1 });
+
+      const contacts = users.filter((contact: any) => {
+        const contactId = contact.id?.toString?.() || contact._id?.toString?.();
+        const isOppositeRole =
+          (req.user.role === "admin" && contact.role === "user") ||
+          (req.user.role === "user" && contact.role === "admin");
+        return contactId !== req.user.id && contact.is_active !== false && isOppositeRole;
+      });
+
+      const mapped = await Promise.all(contacts.map(async (contact) => {
+        const latestMessage = await DirectMessage.findOne({
+          $or: [
+            { sender_id: req.user.id, recipient_id: contact.id },
+            { sender_id: contact.id, recipient_id: req.user.id }
+          ]
+        }).sort({ created_at: -1 });
+
+        const unreadCount = await DirectMessage.countDocuments({
+          sender_id: contact.id,
+          recipient_id: req.user.id,
+          read_at: null
+        });
+
+        return {
+          id: contact.id,
+          name: contact.name,
+          email: contact.email,
+          role: contact.role,
+          profile_photo_url: contact.profile_photo_url || "",
+          latest_message: latestMessage?.content || "",
+          latest_message_at: latestMessage?.created_at || null,
+          unread_count: unreadCount
+        };
+      }));
+
+      res.json(mapped);
+    } catch (err) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get("/api/chat/:userId/messages", authenticate, async (req: any, res) => {
+    try {
+      const permission = await canDirectMessage(req.user, req.params.userId);
+      if (!permission.ok) {
+        return res.status(permission.status).json({ error: permission.error });
+      }
+
+      const messages = await DirectMessage.find({
+        $or: [
+          { sender_id: req.user.id, recipient_id: req.params.userId },
+          { sender_id: req.params.userId, recipient_id: req.user.id }
+        ]
+      })
+        .populate("sender_id", "name email role")
+        .populate("recipient_id", "name email role")
+        .sort({ created_at: 1 });
+
+      await DirectMessage.updateMany({
+        sender_id: req.params.userId,
+        recipient_id: req.user.id,
+        read_at: null
+      }, {
+        read_at: new Date()
+      });
+
+      const mapped = messages.map((message) => {
+        const item = message.toJSON();
+        return {
+          ...item,
+          sender_id: (message.sender_id as any)?.id || item.sender_id,
+          recipient_id: (message.recipient_id as any)?.id || item.recipient_id,
+          sender_name: (message.sender_id as any)?.name || "Unknown",
+          sender_role: (message.sender_id as any)?.role || "user",
+          recipient_name: (message.recipient_id as any)?.name || "Unknown",
+          recipient_role: (message.recipient_id as any)?.role || "user"
+        };
+      });
+
+      res.json(mapped);
+    } catch (err) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.post("/api/chat/:userId/messages", authenticate, async (req: any, res) => {
+    const { content } = req.body || {};
+    if (!content || !content.trim()) {
+      return res.status(400).json({ error: "Message content is required" });
+    }
+
+    try {
+      const permission = await canDirectMessage(req.user, req.params.userId);
+      if (!permission.ok) {
+        return res.status(permission.status).json({ error: permission.error });
+      }
+
+      const message = await DirectMessage.create({
+        sender_id: req.user.id,
+        recipient_id: req.params.userId,
+        content: content.trim()
+      });
+
+      await logActivity(req.user.id, "Sent direct message", {
+        recipient_id: req.params.userId
+      });
+
+      res.json({ success: true, id: message.id });
+    } catch (err) {
+      res.status(400).json({ error: "Invalid message data" });
     }
   });
 

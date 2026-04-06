@@ -146,3 +146,27 @@ export interface UserSettingsUpdate {
   };
   current_password?: string;
 }
+
+export interface ChatContact {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  profile_photo_url?: string;
+  latest_message?: string;
+  latest_message_at?: string | null;
+  unread_count?: number;
+}
+
+export interface DirectMessage {
+  id: string;
+  sender_id: string;
+  recipient_id: string;
+  content: string;
+  created_at: string;
+  read_at?: string | null;
+  sender_name?: string;
+  sender_role?: UserRole;
+  recipient_name?: string;
+  recipient_role?: UserRole;
+}

@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../App';
-import { ArrowRight, LogIn, Mail, Lock, Sparkles } from 'lucide-react';
+import { ArrowRight, LogIn, Mail, Lock, Sparkles, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -84,6 +85,7 @@ export default function Login() {
           </div>
           <h2 className="text-3xl font-bold tracking-tight text-slate-900">Welcome back</h2>
           <p className="mt-2 text-sm text-slate-500">Sign in to access your dashboard and continue your work.</p>
+          <p className="mt-2 text-xs text-slate-400">Use the email and password you created during registration.</p>
         </div>
 
         {error && (
@@ -105,10 +107,20 @@ export default function Login() {
           <Field
             label="Password"
             icon={<Lock className="h-4 w-4" />}
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={setPassword}
             placeholder="Enter your password"
+            action={(
+              <button
+                type="button"
+                onClick={() => setShowPassword((current) => !current)}
+                className="rounded-lg p-1 text-slate-400 transition hover:text-slate-600"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            )}
           />
 
           <button
@@ -141,6 +153,7 @@ function Field({
   value,
   onChange,
   placeholder,
+  action,
 }: {
   label: string;
   icon: React.ReactNode;
@@ -148,6 +161,7 @@ function Field({
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
+  action?: React.ReactNode;
 }) {
   return (
     <div className="space-y-1.5">
@@ -159,9 +173,10 @@ function Field({
           required
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full rounded-xl border border-pink-100 bg-gradient-to-b from-white to-orange-50/30 py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-pink-300 focus:ring-4 focus:ring-pink-100"
+          className={`w-full rounded-xl border border-pink-100 bg-gradient-to-b from-white to-orange-50/30 py-3 pl-10 text-sm text-slate-900 outline-none transition focus:border-pink-300 focus:ring-4 focus:ring-pink-100 ${action ? 'pr-12' : 'pr-4'}`}
           placeholder={placeholder}
         />
+        {action && <div className="absolute right-3 top-1/2 -translate-y-1/2">{action}</div>}
       </div>
     </div>
   );
